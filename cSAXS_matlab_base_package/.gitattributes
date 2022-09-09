@@ -1,0 +1,4 @@
++io/spec_reader/spec_reader filter=lfs diff=lfs merge=lfs -text
++io/spec_find_scans/findScans filter=lfs diff=lfs merge=lfs -text
++beamline/+nexus/private/cbf2hdf5/cbf2hdf5 filter=lfs diff=lfs merge=lfs -text
++math/integMask/integMask filter=lfs diff=lfs merge=lfs -text

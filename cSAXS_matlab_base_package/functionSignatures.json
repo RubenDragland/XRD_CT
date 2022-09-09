@@ -1,0 +1,93 @@
+{
+"io.image_read":
+{
+  "inputs":
+  [
+    {"name":"filename", "kind":"required", "type":["filepath=*.hdf5,*.h5,*.nxs,*.tiff, *.tif, *.cbf"] },
+
+    {"name":"varargin", "kind":"optional", "multiplicity":"append"}
+  ]
+},
+"io.load_prepared_data":
+{
+  "inputs":
+  [
+    {"name":"filename", "kind":"required", "type":["filepath=*.h5,*.cxs"] },
+
+    {"name":"return_intensity", "kind":"positional", "type":[["logical"], ["choices={'true', 'false'}"]]},
+
+    {"name":"scan", "kind":"positional"}
+  ]
+},
+"io.HDF.hdf5_load":
+{
+  "inputs":
+  [
+    {"name":"filename", "kind":"required", "type":["filepath=*.h5,*.cxs,*.hdf5,*.nxs"] },
+
+    {"name":"varargin", "kind":"optional", "multiplicity":"append"}
+  ]
+},
+"io.HDF.save2hdf5":
+{
+  "inputs":
+  [
+    {"name":"filename", "kind":"required", "type":[["folderpath"], ["char"], ["filepath"]]},
+    
+    {"name":"data", "kind":"required"},
+
+    {"name":"varargin", "kind":"flag", "multiplicity":"append", "type":["choices={'data_name','overwrite','gpath','Attributes', 'comp', 'creator', 'iscopy', 'extend_dim', 'extendable', 'extend_offset', 'extend_maxdims'}"]}
+  ]
+},
+"io.HDF.hdf5_dset_exists":
+{
+  "inputs":
+  [
+    {"name":"filename", "kind":"required", "type":["filepath=*.h5,*.cxs,*.hdf5,*.nxs"] },
+
+    {"name":"dset", "kind":"required", "type":"char"},
+
+    {"name":"gpath", "kind":"positional", "type":"char"},
+
+    {"name":"check_links", "kind":"positional", "display":"", "type":[["logical"], ["choices={'true', 'false'}"]]}
+  ]
+},
+"io.spec_read":
+{
+  "inputs":
+  [
+    {"name":"specDatFile", "kind":"required", "type":"folderpath"},
+
+    {"name":"varargin", "kind":"flag", "type":["choices={'ScanNr','Burst','MultExposure','OutPut', 'Cell', 'PilatusMask', 'PilatusPath', 'ValidMask', 'UnhandledParError'}"]}
+
+  ]
+},
+"plotting.ptycho_show_recons":
+{
+  "inputs":
+  [
+    {"name":"filename", "kind":"required", "type":["filepath=*.mat,*.h5,*.cxs"] },
+
+    {"name":"varargin", "kind":"optional", "multiplicity":"append"}
+  ]
+},
+"io.load_ptycho_recons":
+{
+  "inputs":
+  [
+    {"name":"filename", "kind":"required", "type":["filepath=*.mat,*.h5,*.cxs"] },
+
+    {"name":"varargin", "kind":"optional", "multiplicity":"append"}
+  ]
+},
+"io.nexus_read":
+{
+  "inputs":
+  [
+    {"name":"filename", "kind":"required", "type":["filepath=*.mat,*.h5,*.cxs"] },
+
+    {"name":"varargin", "kind":"optional", "multiplicity":"append"}
+  ]
+}
+}
+

@@ -1,0 +1,3 @@
+.gitattributes                                      export-ignore
+utilities/pctPreRemoteEvaluation.m                  export-ignore
+utilities/private/dctRegisterMpiFunctions.mexa64    export-ignore
