@@ -1,4 +1,4 @@
-This repository performs Small Angle X-ray Scattering Tensor Tomography (SAXSTT) using MATLAB-packages downloaded from Paul Scherrer Institute (http://www.psi.ch). The optimization algorithm, which uses Conjugate Gradient Descent (CGD) to find the most accurate Spherical Harmonics (SH) to describe the "structure" of each volume element (dV), may be improved by implementing Gradient Descent (GD) with Automatic Differentiation (AD) to describe the volume elements in terms of uniaxial Lagrange polynomials.
+This repository performs Small Angle X-ray Scattering Tensor Tomography (SAXSTT) using MATLAB-packages downloaded from Paul Scherrer Institute (http://www.psi.ch). The optimization algorithm, which uses Conjugate Gradient Descent (CGD) to find the most accurate Spherical Harmonics (SH) to describe the "structure" of each volume element (dV), may be improved by implementing Gradient Descent (GD) with Automatic Differentiation (AD) to describe the volume elements in terms of uniaxial Legendre polynomials.
 
 As noted below, the following license do apply:
 
