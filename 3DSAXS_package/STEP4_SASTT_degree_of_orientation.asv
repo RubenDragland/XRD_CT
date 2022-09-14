@@ -31,8 +31,8 @@ view3(reshaped_coefficients.*s.mask3D);
 
 %% STEP 4.2 calculate degree of orientation
 
-degree_orientation = zeros(size(s.theta.data)); 
-%degree_orientation = zeros(size(s.mask3D));
+%degree_orientation = zeros(size(s.theta.data)); 
+degree_orientation = zeros(size(s.mask3D));
 num = degree_orientation;
 den = degree_orientation;
 

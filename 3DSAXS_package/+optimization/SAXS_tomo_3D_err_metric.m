@@ -192,6 +192,7 @@ end
 
 ones_struct = ones(1, numOfsegments, numOfvoxels);
 
+%SO FAR SO GOOD, MAY PROPABLY BE ABLE TO KEEP EVERYTHING UP TO THIS POINT. 
 % optimization
 E = 0;
 
@@ -307,10 +308,10 @@ parfor ii = 1:length(projection) %use parallel processing for the loop over all 
         proj_out(ii).rotx = projection(ii).rot_x;
         proj_out(ii).roty = projection(ii).rot_y;
     end
-    %%%the gradients
+    %%%the gradients HERE THE GRADIENTS BEGIN.
     if find_grad
         aux_grad_poisson =  aux_diff_poisson ./ (sqrt(proj_out_all) + 1e-10) / numOfpixels; 
-        aux_grad_poisson_vol = arb_back_projection(aux_grad_poisson, xout, yout, X, Y, Z, Rot_exp_now, p);
+        aux_grad_poisson_vol = arb_back_projxection(aux_grad_poisson, xout, yout, X, Y, Z, Rot_exp_now, p);
         
         if find_coefficients
             % = conj( sum(a_lm*Y_lm) )*Ylm
