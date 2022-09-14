@@ -1,6 +1,8 @@
 % comparison of the result from optimization and measured data
 % compare the 2D projections
 
+% RSD: NB! THE SCRIPT DOES NOT WORK
+
 close all
 clear all
 
@@ -9,10 +11,14 @@ addpath ../scanning_saxs/
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % EDIT:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-base_path = '/das/work/units/csaxs/p17283/Bone_sample/';%'~/Data10';         % = ~/Data10 for online analysis, provide the path for offline analysis Ex: '/das/work/p16/p16649/'
-sample_name = 'bone';%'sample_name';    % name given in the saxs_caller_template
-add_name = 'test_debug_20190627';%'ID';         % additional name the optimizations: = [ ] if not needed
-include_IRTT = 0;               % = 1 to include the results from IRTT
+%base_path = '/das/work/units/csaxs/p17283/Bone_sample/';%'~/Data10';         % = ~/Data10 for online analysis, provide the path for offline analysis Ex: '/das/work/p16/p16649/'
+%sample_name = 'bone';%'sample_name';    % name given in the saxs_caller_template
+parent = cd ;
+base_path = '/Data sets/' ; 
+base_path = [parent base_path] ; % SAFE WITH FULL PATH
+sample_name = 'SASTT_carbon_knot_aligned_ASTRA_corrected' ;
+add_name = '';%'ID';         % additional name the optimizations: = [ ] if not needed
+include_IRTT = 1;               % = 1 to include the results from IRTT
                                 % = 0 to not include IRTT    
 theta_det = pi/2;               % Ewald sphere correction, for SAXS pi/2
 which_projections = [1:10:200]; % which projections to plot, example [1:10:300]
@@ -30,8 +36,8 @@ save_figure = 0;                % = 1, to save figure, = 0 does not save
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % load aligned projections
-filename = fullfile(base_path,sprintf('analysis/SASTT/%s/projection_data/SASTT_%s_aligned_ASTRA.mat', ...
-    sample_name, sample_name));
+%filename = fullfile(base_path,sprintf('analysis/SASTT/%s/projection_data/SASTT_%s_aligned_ASTRA.mat', sample_name, sample_name));
+filename = sprintf('%s%s.mat', base_path, sample_name); %CURRENTLY WHAT IS NEEDED.
 load(filename);
 
 
