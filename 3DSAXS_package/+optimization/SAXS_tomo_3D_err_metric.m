@@ -308,10 +308,10 @@ parfor ii = 1:length(projection) %use parallel processing for the loop over all 
         proj_out(ii).rotx = projection(ii).rot_x;
         proj_out(ii).roty = projection(ii).rot_y;
     end
-    %%%the gradients HERE THE GRADIENTS BEGIN.
+    %%%the gradients RSD: HERE THE GRADIENTS BEGIN.
     if find_grad
         aux_grad_poisson =  aux_diff_poisson ./ (sqrt(proj_out_all) + 1e-10) / numOfpixels; 
-        aux_grad_poisson_vol = arb_back_projxection(aux_grad_poisson, xout, yout, X, Y, Z, Rot_exp_now, p);
+        aux_grad_poisson_vol = arb_back_projection(aux_grad_poisson, xout, yout, X, Y, Z, Rot_exp_now, p); % RSD: FOR SOME REASON THE FUNCTION CALL IS MISSPELLED. MY FAULT? arb_back_projxection(aux_grad_poisson, xout, yout, X, Y, Z, Rot_exp_now, p);
         
         if find_coefficients
             % = conj( sum(a_lm*Y_lm) )*Ylm
