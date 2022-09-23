@@ -63,9 +63,9 @@ use360degDetector = 0;
     end
     % = 0.09, for decreasing  the size of  the
     % color wheel
-    save_video = 1;                 % = 1, to save video, = 0 does not save
+    save_video = 0;                 % = 1, to save video, = 0 does not save
     save_figure = 1;                % = 1, to save figure, = 0 does not save
-    save_I_phi_plot = 0;                % FKM saves a I_phi plot at point
+    save_I_phi_plot = 1;                % FKM saves a I_phi plot at point
     I_phi_point = [14 14];              %point  
     scaleOrientation = 0;
     customColorScale = [0 1];

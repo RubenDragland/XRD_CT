@@ -47,7 +47,7 @@ add_name = '';       % additional name the optimizations: = [ ] if not needed
 
 % load data
 %filename = fullfile(base_path,sprintf('analysis/SASTT/%s/projection_data/SASTT_%s_aligned_ASTRA.mat', ...sample_name, sample_name));
-filename = sprintf('%s%s.mat', base_path, sample_name); %CURRENTLY WHAT IS NEEDED.
+filename = sprintf('%s%s.mat', base_path, sample_name); %RSD: CURRENTLY WHAT IS NEEDED.
 load(filename);
 
 params_IRTT.results = fullfile(base_path, sprintf('analysis/SASTT/%s/IRTT/%s/results/', sample_name, add_name)); % MAY ACTUALLY BE A GOOD IDEA... KEEP /OUTPUT/ EMPTY FOR NOW
@@ -159,7 +159,7 @@ view3((s.mask3D.*tomotensor_vecs_1_abs - cut_off*3*(1-s.mask3D)), coloraxis,view
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % optimize all coefficients (a0, a2, a4 and a6) and angles (theta and phi)
 % whihout any constriction
-apply_angle_regularization_SH = 0; %1 ERROR BECAUSE ARRAY DOES NOT EXIST YET... ; % =1 to regularize angles, =0 not to
+apply_angle_regularization_SH = 0; %RSD: 1 ERROR BECAUSE ARRAY DOES NOT EXIST YET... ; % =1 to regularize angles, =0 not to
 p.skip_projections = 1;              % to reduce the number of projections
 
 p.opt_coeff = [1, 1, 1, 1];
@@ -177,10 +177,10 @@ p.itmax = 50;   % maximum number of iterations: about 50-100
 p.avoid_wrapping = 1;     % avoid wrapping over 2Pi of the angle
 
 % HAS TO BE A SMALL ERROR IN THE CODE. P.RESULTS DOES NOT EXIST. COPY IT FROM IRTT.RESULTS
-%p.results = params_IRTT.results ;
-%p.sample_name = sample_name ;
-%p.add_name = add_name ;
-%p.figures = params_IRTT.figures ;
+p.results = params_IRTT.results ;
+p.sample_name = sample_name ;
+p.add_name = add_name ;
+p.figures = params_IRTT.figures ;
 all_again_filename = sprintf('%s/result_%s_q%d-%d_all_again_%s.mat', p.results, ...
     p.sample_name, projection(1).par.r_sum{1}(1),  projection(1).par.r_sum{1}(end), p.add_name);
 
@@ -215,7 +215,7 @@ for ii = 1:numel(p.opt_coeff)
     end
 end
 
-% EDIT: SOME DIFFERENCES BETWEEN IR_SH PREPARATIONS AND SH_PREPARATIONS. RESULTS IN ERRORS. HENCE, INCLUDE SH_PREPARATIONS:
+% RSD: EDIT: SOME DIFFERENCES BETWEEN IR_SH PREPARATIONS AND SH_PREPARATIONS. RESULTS IN ERRORS. HENCE, INCLUDE SH_PREPARATIONS:
 E = []; % X-RAY SOURCE ENERGY. THINK SHOULD BE EMPTY FOR SAXS
 if isempty(E)
     projection(1).integ.theta_det = pi/2;

@@ -9,8 +9,9 @@
 parent = cd ;
 base_path = '/Data sets/' ; 
 base_path = [parent base_path] ; % RSD: SAFE WITH FULL PATH
+sample_name = 'SASTT_carbon_knot_aligned_ASTRA_corrected';
 add_name = '';%'ID';       % additional name the optimizations: = [ ] if not needed
-which_coeff = 2;                % which coefficient to show a0 = 1, a2 = 2, a4 = 3, a6 = 4
+which_coeff = 1;                % which coefficient to show a0 = 1, a2 = 2, a4 = 3, a6 = 4
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 addpath utilities/
@@ -53,7 +54,7 @@ view3(degree_orientation.*s.mask3D); % RSD: WHY IS THE MASK APPLIED TWICE?
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % EDIT:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-apply_threshold = 1; % = 0 for applying no threeshowld to the degree of orientation
+apply_threshold = 0; % = 0 for applying no threeshowld to the degree of orientation
 threshold_max = 0.5; % max degree of orientation
 threshold_min = 0; % min degree of orientation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
