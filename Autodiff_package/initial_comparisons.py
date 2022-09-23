@@ -1,4 +1,4 @@
-import profile
+from importlib.metadata import requires
 import matplotlib.pyplot as plt
 import numpy as np
 #from numba import njit Numpy version issue
@@ -11,7 +11,7 @@ import time, timeit
 
 # Functions/gradients expression f = ln(x1) + x1*x2 + sin(x2)
 
-# NB! Not implemented yet...
+
 def symbolic_f(x1,x2)-> np.array:
     return np.array( [1/x1 + x2 , x1 - np.cos(x2) ] )
 
@@ -83,6 +83,34 @@ def AD_torch(func, x1: np.array, x2: np.array )-> torch.tensor:
     y.backward( torch.tensor( np.ones(len(x1)) ) )
     return x.grad
 
+def AD_torch_general(func, *args, **kwargs) -> torch.tensor:
+    '''
+    Applies automatic differentiation provided by pytorch
+
+    Parameters: 
+    -----------
+    func: function
+        The cost function to be called
+    *args: list
+        The arguments of the cost function
+    **kwargs: dict
+        The variables for whom one shall differentiate.
+
+    returns: torch.tensor
+        The gradients    
+    '''
+    first_var = list(kwargs)[0]
+    x = torch.ones(size = (len(kwargs), *kwargs[first_var].size() ) )# , requires_grad=True)
+    for it, (key, elem) in enumerate( kwargs.items() ):
+        x[it] = elem
+    x.requires_grad_(True)
+    y = func( *args, x )
+
+    y.backward( ) 
+
+    return x.grad 
+
+
 
 def AD_autograd(func, x1: anp.array, x2: anp.array) -> anp.array:
     return egrad(func, (0,1))(x1,x2) #egrad( func(x1,x2) )
@@ -102,9 +130,17 @@ def numerical_diff(f, x1: np.array , x2: np.array, h=1e-6):
     grads[1] = ( f( x1, x2 + h ) - f( x1, x2 - h ) )/ (2*h)
     return grads
 
+def numerical_diff_general(f, *args, **kwargs):
+    """Generalisation of numerical_diff()"""
+    h = 1e-4 # Set in stone
+    grads = {}
+    for key, elem in kwargs.items():
+        grads[key] = ( f( *args, elem + h, ) - f( *args, elem-h) )/ (2*h)
+    return grads
+
 if __name__ == "__main__":
 
-    num_elem = int(1e6)
+    num_elem = int(1e7)
 
     rng = np.random.default_rng(seed=69)
     x = np.abs( rng.normal(size = num_elem) )
