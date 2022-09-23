@@ -166,7 +166,7 @@ for ii = 1:numel(p.opt_coeff)
         opt_inputs = [opt_inputs; s.a(ii).data(:)];
     end
 end
-opt_inputs = opt_inputs.';
+opt_inputs = opt_inputs.'; % RSD: Transpose https://se.mathworks.com/help/matlab/matlab_prog/matlab-operators-and-special-characters.html
 
 Nvol = size(s.a(1).data);
 

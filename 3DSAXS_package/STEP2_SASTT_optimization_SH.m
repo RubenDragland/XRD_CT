@@ -67,6 +67,7 @@ p.phi_det = deg2rad(projection(1).integ.phi_det(1:p.numsegments)); %in radians
 % a planar cut (theta_det = pi/2);
 if isempty(E)
     projection(1).integ.theta_det = pi/2;
+    % RSD: SHOULD LINES 75-76 REGARDING R AND Q RANGE BE INCLUDED HERE?
 else
     lambda = 1.23984197/E;  % wavelength of X-rays in nm
     %%% MGS - How general should this be? Should we allow each projection
@@ -87,7 +88,7 @@ p.numOfvoxels = p.nx * p.ny * p.nz;
 
 s = struct;
 
-s.mask3D = ones(p.ny, p.nx, p.nz);
+s.mask3D = ones(p.ny, p.nx, p.nz); %RSD: NOTE Y FIRST...
 
 % parameters for optimization of 1 coefficient for symmetric intensity
 % Spherical harmonic parameters for optimizing only the coefficient
@@ -176,7 +177,7 @@ p.slice = 0; %in case the optimization is done on a slice (so it is using a 2D k
 kernel3D = window3(5,5,5,@hamming);
 p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 
-p.itmax = 2; %20                  % maximum number of iterations: about 20
+p.itmax = 25; %20                  % maximum number of iterations: about 20
 p.skip_projections = 1;        % = 1, for not skipping projections
 
 p.avoid_wrapping=0;            % avoid wrapping over 2Pi
@@ -251,7 +252,7 @@ p.regularization = 0;             % Sieves regularization on the coefficients. (
 p.regularization_angle = 0;       % Regularization of the angles. (true or false)
 p.regularization_angle_coeff = 0; % mu for regularization of angle, needs to be found with L-curve
 
-p.itmax = 3; %30;           % maximum number of iterations: about 50
+p.itmax = 50; %30;           % maximum number of iterations: about 50
 p.skip_projections = 1; % = 1, for not skipping projections
 
 p.avoid_wrapping = 1;   % Avoid wrapping of the angle (to keep angle between 0 and 2pi) (true or false)
@@ -300,7 +301,7 @@ p.slice = 0;
 kernel3D = window3(5,5,5,@hamming);    % strength of Sieves regularization
 p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 
-p.itmax = 2; 20;            % maximum number of iterations: about 20
+p.itmax = 20; %20;            % maximum number of iterations: about 20
 p.skip_projections = 1;  % = 1, for not skipping projections
 
 p.avoid_wrapping = 0;    % avoid wrapping over 2Pi of the angle
@@ -350,7 +351,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % EDIT:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-it_max = 3; %10;               % 3 to 10 iterations seem to work well
+it_max = 10; %10;               % 3 to 10 iterations seem to work well
 mu = logspace(-5, 10, 15); % This values should be standard: larger range if there is no crossing point
 p.skip_projections = 10;   % = 1, for not skipping projections. = 5-10 works well
 p.save.output_filename = '';
@@ -377,15 +378,15 @@ p.opt_coeff = [1, 1, 1, 1];
 
 p.find_orientation = 1;      % Optimize over the main orientation of the structure
 
-p.regularization = 0;        % Sieves regularization on coeff
+p.regularization = 1;        % Sieves regularization on coeff
 p.regularization_angle = 1; %regularization of angle
-p.regularization_angle_coeff = mu_guess;  %find the appropriate mu with L-curve from step 2.6
+p.regularization_angle_coeff = mu_guess;  %find the appropriate mu with L-curve from step 2.6 % RSD: Is this correct?
 
 %parameters for the sieves regularization (blurring the gradient)
 kernel3D=window3(5,5,5,@hamming);
 p.kernel=kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 
-p.itmax = 5; %50;                          % maximum number of iterations: about 50-100
+p.itmax = 50; %50;                          % maximum number of iterations: about 50-100
 p.skip_projections = 1;                % = 1, for not skipping projections
 
 p.avoid_wrapping = 1;     % avoid wrapping over 2Pi of the angle

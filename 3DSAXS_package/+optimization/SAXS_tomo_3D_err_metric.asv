@@ -282,8 +282,7 @@ parfor ii = 1:length(projection) %use parallel processing for the loop over all 
     %TO KEEP IT.
     
     sumlm_alm_Ylm = bsxpagemult(double(a_temp), Ylm);   % RSD: INNER PART OF EQ(3) OR EQ(1) LIEBI ET AL 2018
-    %RSD: BELIEVE THE ORDERING BECOMES:
-    %{1 NUM_SEGMENTS NUM_VOXELS] = [1 NUM_VOXELS NUM_ORDER/COEFF] X [NUM_ORDER NUM_SEGMENTS NUM_VOXELS] ?
+    %RSD: BELIEVE THE ORDERING BECOMES: {1 NUM_SEGMENTS NUM_VOXELS] = 1 NUM_COEFF NUM_VOXELS
     
     % R [y x z numOfsegments]   Eq. (1) of Liebi et al 2018, here organized
     % as [1 numOfsegments numOfvoxels]
@@ -323,7 +322,7 @@ parfor ii = 1:length(projection) %use parallel processing for the loop over all 
     %%%the gradients RSD: HERE THE GRADIENTS BEGIN.
     if find_grad
         aux_grad_poisson =  aux_diff_poisson ./ (sqrt(proj_out_all) + 1e-10) / numOfpixels; 
-        aux_grad_poisson_vol = arb_back_projection(aux_grad_poisson, xout, yout, X, Y, Z, Rot_exp_now, p); 
+        aux_grad_poisson_vol = arb_back_projection(aux_grad_poisson, xout, yout, X, Y, Z, Rot_exp_now, p); % RSD: FOR SOME REASON THE FUNCTION CALL IS MISSPELLED. MY FAULT? arb_back_projxection(aux_grad_poisson, xout, yout, X, Y, Z, Rot_exp_now, p);
         
         if find_coefficients
             % = conj( sum(a_lm*Y_lm) )*Ylm
