@@ -215,6 +215,7 @@ z = (1:N(3)) - ceil(N(3)/2);
 
 %calculate for all projections
 parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
+%for ii = 1:length(projection)
     
     data = double(projection(ii).data);
     

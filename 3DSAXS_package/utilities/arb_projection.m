@@ -205,15 +205,19 @@ if strcmpi(method,'nearest')
     
     % initialization for all iterations of the following loop
     proj_out_all = zeros(numel(yout), numel(xout), size(tomo_obj_all, 4));
-
+    %%% RSD: Original code gets error here. One option is to Assume faulty code and add the last _all to the mentioned proj_out
+    %%% RSD: One reduces the z-axis to estimate the intensity projections.
+    %%% RSD: Each tomography voxel has to interpolated due to rotations.
     for jj = 1:size(tomo_obj_all,4)
+        proj_out = zeros(numel(yout), numel(xout)); %RSD: Hopefully this is the lacking part of the interpolation. REMEMBER THIS CHANGE!
         for ii = 1:numel(Ax)
             if (Ax(ii) > 0)&&(Ax(ii) < size(proj_out,2))&&(Ay(ii) > 0)&&(Ay(ii) < size(proj_out,1))
-                proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + tomo_obj(ii);
+                proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + tomo_obj_all(ii); % RSD: BIT UNSURE WHAT IS SUPPOSED TO BE HERE. HOPE FOR THE BEST
             end
         end
         proj_out_all(:,:,jj) = proj_out;
     end
+    %RSD: Issue remains to ensure that the dlarray remains...
     
 elseif strcmpi(method,'bilinear')
     %%% Bilinear interpolation %%%
@@ -222,7 +226,7 @@ elseif strcmpi(method,'bilinear')
     Tx = (Xp-min_xout+1) - Ax; % Variable from 0 to 1 from x distance of pixel Ax to Ax+1 where the voxel hits
     Ty = (Yp-min_yout+1) - Ay;
     
-    size_proj_out_all = uint64([numel(yout), numel(xout), size(tomo_obj_all, 4)]);
+    size_proj_out_all = uint64([numel(yout), numel(xout), size(tomo_obj_all, 4)]); % RSD: SIZES OF ARRAYS?
     proj_out_all = sum_projection(size_proj_out_all, tomo_obj_all, Ax, Ay, Tx, Ty);
     
 else

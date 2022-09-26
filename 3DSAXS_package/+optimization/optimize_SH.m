@@ -124,15 +124,19 @@ if ~isfield(p,'plot')
     fprintf('p.plot is empty, setting to default value p.plot = %d \n', p.plot)
 end
 if ~isfield(p,'volume_upsampling')
-    p.volume_upsampling = 1;
+    p.volume_upsampling = 0; %1; RSD:  Upsampling was not recommended. However, poorer resolution. 
     fprintf('p.volume_upsampling is empty, setting to default value p.volume_upsampling = %d \n', p.volume_upsampling)
 end
 if ~isfield(p,'method')
-    p.method = 'bilinear';
+    %p.method = 'bilinear';
+    %RSD: AD MEX crash use nearest
+    p.method = 'nearest';
     fprintf('p.method is empty, setting to default value p.method = %s \n', p.method)
 end
 if ~isfield(p,'filter_2D')
-    p.filter_2D = 1;
+    %p.filter_2D = 1;
+    %RSD: Interferes with dlarrays. Set to 0
+    p.filter_2D = 0;
     fprintf('p.filter_2D is empty, setting to default value p.filter_2D = %d \n', p.filter_2D)
 end
 if ~isfield(p,'slice')
@@ -179,7 +183,8 @@ optimization.errorplot; %clears the persistent variable for error storage
 itmax = p.itmax; %maximum number of iteration (empty for default = 50)
 ftol = [];  %relative function tolerance (empty for default = 1e-3)
 xtol = [];  %absolute solution tolerance (empty for default = 1e-3)
-opt_out = optimization.cgmin1('optimization.SAXS_tomo_3D_err_metric', opt_inputs, itmax, ftol, xtol, p, s, opt_projection);
+%opt_out = optimization.cgmin1('optimization.SAXS_tomo_3D_err_metric', opt_inputs, itmax, ftol, xtol, p, s, opt_projection);
+opt_out = optimization.cgmin1('optimization.SAXS_tomo_3D_err_metric_AD', opt_inputs, itmax, ftol, xtol, p, s, opt_projection); %RSD: Call AD error metric instead.
 timing = toc; % MUST BE WRONG IF TIMING...
 
 % Rearranging the solution

@@ -177,7 +177,7 @@ p.slice = 0; %in case the optimization is done on a slice (so it is using a 2D k
 kernel3D = window3(5,5,5,@hamming);
 p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 
-p.itmax = 25; %20                  % maximum number of iterations: about 20
+p.itmax = 20; %20                  % maximum number of iterations: about 20
 p.skip_projections = 1;        % = 1, for not skipping projections
 
 p.avoid_wrapping=0;            % avoid wrapping over 2Pi
