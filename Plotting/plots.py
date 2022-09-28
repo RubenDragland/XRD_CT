@@ -23,7 +23,13 @@ plt.style.use([ "tableau-colorblind10", "seaborn-paper"])
 mpl.rcParams["axes.prop_cycle"] = ( cycler(color = [u"#F05039", u"#E57A77", u"#EEBAB4", u"#1F449C", u"#3D65A5", u"#7CA1CC", u"#A8B6CC"]) + cycler(linestyle=["-", "--", "-.", ":", "-", "--", "-."]) )  #From: https://www.datylon.com/blog/data-visualization-for-colorblind-readers  and https://ranocha.de/blog/colors/ , respectively
 #cycler(color=plt.style.library["tab10"]["axes.prop_cycle"].by_key()["color"])
 # ggplot seaborn-colorblind
-mpl.rcParams["axes.linewidth"] = 2
+w = 1
+mpl.rcParams["axes.linewidth"] = w
+mpl.rcParams["xtick.major.width"] = w
+mpl.rcParams["xtick.minor.width"] = w
+mpl.rcParams["ytick.major.width"] = w
+mpl.rcParams["ytick.minor.width"] = w
+
 mpl.rcParams["lines.markersize"] = 6
 mpl.rcParams["lines.linewidth"] = 3
 mpl.rcParams["font.size"] = 12
