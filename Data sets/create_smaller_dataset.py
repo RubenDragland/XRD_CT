@@ -1,5 +1,7 @@
 import scipy.io
 import numpy as np
+import matlab.engine
+import matlab
 
 
 
@@ -19,8 +21,10 @@ def create_smaller_dataset(filename:str, ny:int, nx:int):
     ny_org, nx_org, segments = mat_dict[key][0, 0][2].shape
     y_start, y_end = int( ny_org//2 - ny//2), int( ny_org//2 + ny//2) 
     x_start, x_end = int( nx_org//2 - nx//2), int( nx_org//2 + nx//2) 
+
     for i in range( mat_dict[key].shape[-1]):
-        new_dict[key][0, i][2] = mat_dict[key][0,i][2][y_start:y_end, x_start: x_end, :] # Slicing
+       new_dict[key][0, i][2] =  mat_dict[key][0,i][2][y_start:y_end, x_start: x_end, :] # Slicing
+       new_dict[key][0, i][9] =  np.array(mat_dict[key][0,i][9][y_start:y_end, x_start: x_end], dtype = bool ) # Mask is 2D
 
 
     scipy.io.savemat(filename[:-4] + f"ny{ny}nx{nx}" + ".mat", new_dict)
