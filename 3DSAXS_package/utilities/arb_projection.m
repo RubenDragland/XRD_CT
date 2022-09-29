@@ -91,7 +91,7 @@ function [ proj_out_all, xout, yout ] = arb_projection( tomo_obj_all, X, Y, Z, R
 if isfield(p,'volume_upsampling')
     volume_upsampling = p.volume_upsampling;  % Upsamples the volume by a factor of 2 to reduce artifacts
 else
-    volume_upsampling = 0;
+    volume_upsampling = 0; % RSD: Set to 0 in case of empty in case AD is performed. 
 end
 
 if isfield(p,'method')
@@ -104,6 +104,12 @@ if isfield(p,'filter_2D')
     filter_2D = p.filter_2D;
 else
     filter_2D = 3; % Strength of filter applied to image
+end
+
+if isfield(p, 'mode') % Assurance that only nearest for AD
+    if p.mode
+        method = 'nearest';
+    end
 end
 
 % Optional input window, there can be a subpixel offset
@@ -197,19 +203,20 @@ end
 min_xout = min(xout);
 min_yout = min(yout);
 
-if strcmpi(method,'nearest')
+if strcmpi(method,'nearest') && p.mode
     %%% Nearest neighbor %%%
     % Assigns value of voxel to the nearest pixel
     Ax = round(Xp-min_xout+1); % Index of output image that corresponds to the voxel
     Ay = round(Yp-min_yout+1); % Index of output image that corresponds to the voxel
     
     % initialization for all iterations of the following loop
-    proj_out_all = zeros(numel(yout), numel(xout), size(tomo_obj_all, 4));
+    proj_out_all = dlarray(zeros(numel(yout), numel(xout), size(tomo_obj_all, 4)) ) ;
     %%% RSD: Original code gets error here. One option is to Assume faulty code and add the last _all to the mentioned proj_out
     %%% RSD: One reduces the z-axis to estimate the intensity projections.
     %%% RSD: Each tomography voxel has to interpolated due to rotations.
+    %%% RSD: We omit the advice: Do not introduce a new dlarray inside of an objective function calculation and attempt to differentiate with respect to that object. 
     for jj = 1:size(tomo_obj_all,4)
-        proj_out = zeros(numel(yout), numel(xout)); %RSD: Hopefully this is the lacking part of the interpolation. REMEMBER THIS CHANGE!
+        proj_out = dlarray(zeros(numel(yout), numel(xout)) ) ; %RSD: Hopefully this is the lacking part of the interpolation. REMEMBER THIS CHANGE!
         for ii = 1:numel(Ax)
             if (Ax(ii) > 0)&&(Ax(ii) < size(proj_out,2))&&(Ay(ii) > 0)&&(Ay(ii) < size(proj_out,1))
                 proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + tomo_obj_all(ii); % RSD: BIT UNSURE WHAT IS SUPPOSED TO BE HERE. HOPE FOR THE BEST
@@ -218,6 +225,26 @@ if strcmpi(method,'nearest')
         proj_out_all(:,:,jj) = proj_out;
     end
     %RSD: Issue remains to ensure that the dlarray remains...
+elseif strcmpi(method,'nearest') 
+    % RSD: If Nearest neighbours and symbolic calculation
+    Ax = round(Xp-min_xout+1); % Index of output image that corresponds to the voxel
+    Ay = round(Yp-min_yout+1); % Index of output image that corresponds to the voxel
+    
+    % initialization for all iterations of the following loop
+    proj_out_all = zeros(numel(yout), numel(xout), size(tomo_obj_all, 4))  ;
+    %%% RSD: Original code gets error here. One option is to Assume faulty code and add the last _all to the mentioned proj_out
+    %%% RSD: One reduces the z-axis to estimate the intensity projections.
+    %%% RSD: Each tomography voxel has to interpolated due to rotations.
+    %%% RSD: We omit the advice: Do not introduce a new dlarray inside of an objective function calculation and attempt to differentiate with respect to that object. 
+    for jj = 1:size(tomo_obj_all,4)
+        proj_out = zeros(numel(yout), numel(xout))  ; %RSD: Hopefully this is the lacking part of the interpolation. REMEMBER THIS CHANGE!
+        for ii = 1:numel(Ax)
+            if (Ax(ii) > 0)&&(Ax(ii) < size(proj_out,2))&&(Ay(ii) > 0)&&(Ay(ii) < size(proj_out,1))
+                proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + tomo_obj_all(ii); % RSD: BIT UNSURE WHAT IS SUPPOSED TO BE HERE. HOPE FOR THE BEST
+            end
+        end
+        proj_out_all(:,:,jj) = proj_out;
+    end
     
 elseif strcmpi(method,'bilinear')
     %%% Bilinear interpolation %%%

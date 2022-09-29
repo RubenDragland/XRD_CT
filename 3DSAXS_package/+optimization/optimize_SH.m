@@ -66,7 +66,7 @@
 %    proper use and the correctness of the results.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [p, s] = optimize_SH(projection, p, s)
+function [p, s] = optimize_SH(projection, p, s, AD) %RSD: Added Boolean for automatic differentiation
 % Number of coefficients
 order = numel([s.a.l]);
 
@@ -129,7 +129,7 @@ if ~isfield(p,'volume_upsampling')
 end
 if ~isfield(p,'method')
     %p.method = 'bilinear';
-    %RSD: AD MEX crash use nearest
+    %RSD: AD MEX crash use nearest if not specified.
     p.method = 'nearest';
     fprintf('p.method is empty, setting to default value p.method = %s \n', p.method)
 end
@@ -183,9 +183,15 @@ optimization.errorplot; %clears the persistent variable for error storage
 itmax = p.itmax; %maximum number of iteration (empty for default = 50)
 ftol = [];  %relative function tolerance (empty for default = 1e-3)
 xtol = [];  %absolute solution tolerance (empty for default = 1e-3)
-%opt_out = optimization.cgmin1('optimization.SAXS_tomo_3D_err_metric', opt_inputs, itmax, ftol, xtol, p, s, opt_projection);
-opt_out = optimization.cgmin1('optimization.SAXS_tomo_3D_err_metric_AD', opt_inputs, itmax, ftol, xtol, p, s, opt_projection); %RSD: Call AD error metric instead.
-timing = toc; % MUST BE WRONG IF TIMING...
+
+if AD
+    opt_out = optimization.cgmin1('optimization.SAXS_tomo_3D_err_metric_AD', opt_inputs, itmax, ftol, xtol, p, s, opt_projection); %RSD: Call AD error metric instead.
+else
+    opt_out = optimization.cgmin1('optimization.SAXS_tomo_3D_err_metric', opt_inputs, itmax, ftol, xtol, p, s, opt_projection);
+end
+
+
+timing = toc; 
 
 % Rearranging the solution
 if p.find_orientation

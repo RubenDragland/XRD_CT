@@ -214,8 +214,8 @@ z = (1:N(3)) - ceil(N(3)/2);
 
 
 %calculate for all projections
-parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
-%for ii = 1:length(projection)
+%parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
+for ii = 1:length(projection)
     
     data = double(projection(ii).data);
     
@@ -270,7 +270,7 @@ parfor ii = 1:length(projection) %use parallel processing for the loop over all 
         error('Not all orders m of SH are zero, only m = 0 are currently supported')
     end
     % After multiplication with the coefficients of the Legendre polynomials Ylm becomes the properly normalized SH functions
-    %   [numOforder numOfsegments numOfvoxels] = [numOforder numOforder]*[numOforder numOfsegments numOfvoxels]    .
+    %   [numOforder numOfsegments numOfvoxels] = [numOforder numOforder]*[numOforder numOfsegments numOfvoxels]  .
     Ylm = bsxpagemult(double(Ylm_coef), block_cos_theta_powers);  % RSD: RETRIEVE THE SH FUNCTION FROM MATRIX PRODUCT WITH ARRAY OF POWERS OF COSINE. YLM-COEFFICIENTS MATCHED WITH ITS "COSINE-POLYNOMIAL"
     
     % sum_lm(a_lm*Y_lm)
@@ -309,6 +309,7 @@ parfor ii = 1:length(projection) %use parallel processing for the loop over all 
     error_norm = 2*sum(sum(sum(aux_diff_poisson.^2))) / numOfpixels; % error metric with poisson noise
     E = E + error_norm;
     
+    
     %RSD: ERROR IS FOUND. SOME PARTS HAVE TO BE CHANGED AND WRITTEN IN
     %PYTHON IN ORDER TO UTILISE PYTORCH AUTOGRAD.
     
@@ -335,6 +336,7 @@ parfor ii = 1:length(projection) %use parallel processing for the loop over all 
             Ymn_aux_vol = []; % free up memory
         end
         Ylm = []; %#ok<*NASGU> % free up memory
+        
         
         if find_orientation
             % dq''/dthetaop = d(R_str*q')/dthetaop

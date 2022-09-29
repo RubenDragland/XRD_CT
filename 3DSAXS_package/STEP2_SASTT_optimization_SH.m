@@ -177,8 +177,14 @@ p.slice = 0; %in case the optimization is done on a slice (so it is using a 2D k
 kernel3D = window3(5,5,5,@hamming);
 p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 
-p.itmax = 20; %20                  % maximum number of iterations: about 20
-p.skip_projections = 1;        % = 1, for not skipping projections
+p.itmax = 25; %20                % maximum number of iterations: about 20
+p.skip_projections = 1;         % = 1, for not skipping projections
+p.mode = 1                      % RSD: 1 for AD, 0 for symbolic
+p.method = "bilinear";          % RSD: Choose method of interpolation.
+
+if p.mode
+    p.method = "nearest"        % RSD: Another safety net for method of interpolation.
+end
 
 p.avoid_wrapping=0;            % avoid wrapping over 2Pi
 
@@ -188,7 +194,7 @@ p.save.image_filename = sprintf('%s/optimization_sym_int_%s', p.figures, p.add_n
 
 %optimize
 fprintf('****** Step 2.2 optimization of coefficients over the symmetric intensity: only a0 ******\n')
-[p, s] = optimization.optimize_SH(projection, p, s);
+[p, s] = optimization.optimize_SH(projection, p, s, p.mode); % RSD : true for AD, false for symbolic
 fprintf('Saving results in %s\n',p.save.output_filename)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
