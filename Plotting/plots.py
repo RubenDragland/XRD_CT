@@ -76,5 +76,34 @@ def plot_visualisation_grads(mat_paths: list, keys: list, titles: list, bins=200
     plt.show()
     return
 
+def plot_comparison_grads(mat_paths: list, keys: list, labels: list, bins = 200, range = (-4e-5, -1e-9))-> None:
+    """
+    Plots gradient fingerprints in same figure for comparison purpouses
+    """
+    colors = [u"#F05039", u"#F05039",  u"#1F449C", u"#A8B6CC"]
+    fig, ax = plt.subplots()
+    for i , path in enumerate(mat_paths[1:]):
+        i+=1
+
+        mat_dict = scipy.io.loadmat(path)
+        data = np.reshape(mat_dict[ keys[i] ], -1 ) 
+
+        ax.hist(data, bins=bins, range = range, density = False, alpha = 0.69, color = colors[i], label = labels[i] )   
+
+
+    ax.ticklabel_format( style = "sci", scilimits = (0, 0))   
+    ax.set_ylabel("Count")
+    t = ax.yaxis.get_offset_text()
+    t.set_x(-0.2)
+    ax.set_xlabel("Gradient value")
+    ax.legend()
+    plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+    plt.show()
+    return
+
+
+
+
+
 #print(plt.rcParams)
 #print(plt.style.library.keys())
