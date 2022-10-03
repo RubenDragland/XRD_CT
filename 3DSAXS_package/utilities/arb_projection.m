@@ -218,11 +218,17 @@ if strcmpi(method,'nearest') && p.mode
     for jj = 1:size(tomo_obj_all,4)
         proj_out = dlarray(zeros(numel(yout), numel(xout)) ) ; %RSD: Hopefully this is the lacking part of the interpolation. REMEMBER THIS CHANGE!
         for ii = 1:numel(Ax)
-            if (Ax(ii) > 0)&&(Ax(ii) < size(proj_out,2))&&(Ay(ii) > 0)&&(Ay(ii) < size(proj_out,1))
+            if (Ax(ii) > 0)&&(Ax(ii) <= size(proj_out,2))&&(Ay(ii) > 0)&&(Ay(ii) <= size(proj_out,1)) % RSD: Weird that the last legal index is not included? I kind of disagree. %RSD: EDIT: changed it.
                 proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + tomo_obj_all(ii); % RSD: BIT UNSURE WHAT IS SUPPOSED TO BE HERE. HOPE FOR THE BEST
-            end
+            %else
+            %    proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + 1e-10*tomo_obj_all(ii); %RSD: Keep trace.
+            end % RSD: When tomo_obj_all(ii) never adds anything to proj_out, it is no longer traced...
+            %proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + tomo_obj_all(ii) * ( (Ax(ii) > 0)&&(Ax(ii) < size(proj_out,2))&&(Ay(ii) > 0)&&(Ay(ii) < size(proj_out,1) ) ); % RSD: 0 or 1. Hopefully traceable. 
         end
-        proj_out_all(:,:,jj) = proj_out;
+        proj_out_all(:,:,jj) = proj_out ; %RSD: Check if this solves issue with untraceable in dlfeval.
+    end
+    if all(proj_out_all == 0)
+        proj_out_all(:,:,jj) = 1e-10 * tomo_obj_all(ii) ; %RSD: Do not keep. Only prove concept. Concept proven.
     end
     %RSD: Issue remains to ensure that the dlarray remains...
 elseif strcmpi(method,'nearest') 
@@ -239,7 +245,7 @@ elseif strcmpi(method,'nearest')
     for jj = 1:size(tomo_obj_all,4)
         proj_out = zeros(numel(yout), numel(xout))  ; %RSD: Hopefully this is the lacking part of the interpolation. REMEMBER THIS CHANGE!
         for ii = 1:numel(Ax)
-            if (Ax(ii) > 0)&&(Ax(ii) < size(proj_out,2))&&(Ay(ii) > 0)&&(Ay(ii) < size(proj_out,1))
+            if (Ax(ii) > 0)&&(Ax(ii) <= size(proj_out,2))&&(Ay(ii) > 0)&&(Ay(ii) <= size(proj_out,1)) %RSD: EDIT: Changed limits. 
                 proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + tomo_obj_all(ii); % RSD: BIT UNSURE WHAT IS SUPPOSED TO BE HERE. HOPE FOR THE BEST
             end
         end

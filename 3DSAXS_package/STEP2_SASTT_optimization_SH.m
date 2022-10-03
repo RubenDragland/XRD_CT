@@ -11,7 +11,7 @@ base_path = '/Data sets/';  % = '~/Data10/' for online analysis,
 base_path = [parent base_path] ;
                                             % provide the path for offline analysis
                                             % Ex: '/das/work/p16/p16649/'
-sample_name = 'SASTT_carbon_knot_aligned_ASTRA_corrected'; %'sample_name';     % name given in the saxs_caller_template
+sample_name = 'SASTT_carbon_knot_aligned_ASTRA_correctedny4nx4'; %'sample_name';     % name given in the saxs_caller_template
 p.add_name = '';        % additional name the optimizations: = [ ] if not needed
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -179,7 +179,7 @@ p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 
 p.itmax = 25; %20                % maximum number of iterations: about 20
 p.skip_projections = 1;         % = 1, for not skipping projections
-p.mode = 1                      % RSD: 1 for AD, 0 for symbolic
+p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
 p.method = "bilinear";          % RSD: Choose method of interpolation.
 
 if p.mode

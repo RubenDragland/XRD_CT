@@ -1,4 +1,4 @@
-function [E, grad, proj_out, Ereg] = SAXS_tomo_3D_err_metric(opt_inputs, p, s, projection)
+function [E, grad, proj_out, Ereg] = SAXS_tomo_3D_err_metric_AD(opt_inputs, p, s, projection)
 % ** opt_inputs     Vector with input variables under optimization, set to
 %                   empty to skip optimization and just compute error metric 
 %                   or provide an output projection for data evaluation.
@@ -59,6 +59,7 @@ end
 if isempty(gcp('nocreate'))
     parpool('local', feature('numcores'));
 end
+%RSD: Run without parallel code for debugging.
 
 % parameters for the optimization
 return_synth_proj = (nargout>=3);   % Return projections from synthetic data in proj_out
@@ -74,6 +75,14 @@ else
     find_coefficients = any(p.opt_coeff);       % Optimize over SH coefficients: a (true or false);
     find_orientation = p.find_orientation;
     find_grad = (nargout >= 2);
+    
+    if find_grad 
+        p.method = 'nearest';       % RSD: Ensure nearest interpolation when calculating gradients. 
+        p.volume_upsampling = 0;    % RSD: Same applies to upsampling
+        p.filter_2D = 0;            % RSD: Filter is not yet implemented for AD
+    
+    end
+
     if (p.regularization_angle) && (~find_orientation)
         warning('p.regularization_angle was true but optimization of orientation (p.find_orientation) is false. Regularization of angle will be turned off as it does not make sense if the orienation is not optimized')
         p.regularization_angle = 0; % Notice this still allows above to compute the regularization skip_optimization
@@ -202,20 +211,19 @@ E = 0;
 % correction which is included in theta_det
 unit_q_beamline = [sin(theta_det).*cos(phi_det); sin(theta_det).*sin(phi_det);cos(theta_det)]; 
 
-N = [ny nx nz]; % Size of tomogram
+N = [ny nx nz]; % Size of tomogram  
 x = (1:N(2)) - ceil(N(2)/2);
 y = (1:N(1)) - ceil(N(1)/2);
 z = (1:N(3)) - ceil(N(3)/2);
-[X, Y, Z] = meshgrid(x, y, z); % (x,y,z) (2,1,3)
+[X, Y, Z] = meshgrid(x, y, z); % (x,y,z) (2,1,3) % RSD: Is everything ok with this?
 % If x is defined as the 3rd dimension N(3), then it should appear in the
 % third position of the meshgrid command. If x is defined as the first
 % dimension N(1), then it appears in the second position of the meshgrid,
 % because meshgrid is (x,y,z) and size is (y,x,z)
 
-tic
 %calculate for all projections
 %parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
-for ii = 1:length(projection)
+for ii = 1:length(projection) % RSD: Debug for loop  
     
     data = double(projection(ii).data);
     
@@ -270,7 +278,7 @@ for ii = 1:length(projection)
         error('Not all orders m of SH are zero, only m = 0 are currently supported')
     end
     % After multiplication with the coefficients of the Legendre polynomials Ylm becomes the properly normalized SH functions
-    %   [numOforder numOfsegments numOfvoxels] = [numOforder numOforder]*[numOforder numOfsegments numOfvoxels]  .
+    %   [numOforder numOfsegments numOfvoxels] = [numOforder numOforder]*[numOforder numOfsegments numOfvoxels]    .
     Ylm = bsxpagemult(double(Ylm_coef), block_cos_theta_powers);  % RSD: RETRIEVE THE SH FUNCTION FROM MATRIX PRODUCT WITH ARRAY OF POWERS OF COSINE. YLM-COEFFICIENTS MATCHED WITH ITS "COSINE-POLYNOMIAL"
     
     % sum_lm(a_lm*Y_lm)
@@ -282,36 +290,42 @@ for ii = 1:length(projection)
     %MOREOVER, BSXPAGEMULT IS PROPABLY FAST (SHOULD BE CHECKED) THUS NICE
     %TO KEEP IT.
     
-    sumlm_alm_Ylm = bsxpagemult(double(a_temp), Ylm);   % RSD: INNER PART OF EQ(3) OR EQ(1) LIEBI ET AL 2018
-    %RSD: BELIEVE THE ORDERING BECOMES:
-    %{1 NUM_SEGMENTS NUM_VOXELS] = [1 NUM_VOXELS NUM_ORDER/COEFF] X [NUM_ORDER NUM_SEGMENTS NUM_VOXELS] ?
-    
-    % R [y x z numOfsegments]   Eq. (1) of Liebi et al 2018, here organized
-    % as [1 numOfsegments numOfvoxels]
-    data_synt_vol = permute(abs(sumlm_alm_Ylm.^2), [3, 2, 1]); % modeled intensities
-    data_synt_vol = reshape(data_synt_vol, ny, nx, nz, numOfsegments);
-    
-    %%%% Projection of the data_synt_vol onto detector plane, in direction
-    %%%% of Rot_exp
-    
-    % output of projection should have the size of the measured projection
-    %put in alignment correction values from registration
-    xout = (1:size(data,2)) - ceil(size(data,2)/2) + projection(ii).dx;     % RSD: DATA IS JUST PROJECTION DATA
-    yout = (1:size(data,1)) - ceil(size(data,1)/2) + projection(ii).dy;
-    
-    % I [y x numOfsegments] Eq(3) of Liebi et al
-    [proj_out_all, xout, yout] = arb_projection(data_synt_vol, X, Y, Z, Rot_exp_now, p, xout, yout);   % RSD: GET ESTIMATED INTENSITIES.
-    data_synt_vol = []; % free up memory
-    
-    %%%calculating the error (difference between estimated intensity and measured data), taking poisson noise into account
-    %auxillary functions, used in E and the gradient
-    aux_diff_poisson = (sqrt(proj_out_all) - sqrt(data)) .* projection(ii).window_mask;
-    error_norm = 2*sum(sum(sum(aux_diff_poisson.^2))) / numOfpixels; % error metric with poisson noise
+    %%%%%%%%%%      sumlm_alm_Ylm = bsxpagemult(double(a_temp), Ylm);   % RSD: INNER PART OF EQ(3) OR EQ(1) LIEBI ET AL 2018
+    %%%%%%%%%%      %RSD: BELIEVE THE ORDERING BECOMES:
+    %%%%%%%%%%      %{1 NUM_SEGMENTS NUM_VOXELS] = [1 NUM_VOXELS NUM_ORDER/COEFF] X [NUM_ORDER NUM_SEGMENTS NUM_VOXELS] ?
+    %%%%%%%%%%      
+    %%%%%%%%%%      % R [y x z numOfsegments]   Eq. (1) of Liebi et al 2018, here organized
+    %%%%%%%%%%      % as [1 numOfsegments numOfvoxels]
+    %%%%%%%%%%      data_synt_vol = permute(abs(sumlm_alm_Ylm.^2), [3, 2, 1]); % modeled intensities
+    %%%%%%%%%%      data_synt_vol = reshape(data_synt_vol, ny, nx, nz, numOfsegments);
+    %%%%%%%%%%      
+    %%%%%%%%%%      %%%% Projection of the data_synt_vol onto detector plane, in direction
+    %%%%%%%%%%      %%%% of Rot_exp
+    %%%%%%%%%%      
+    %%%%%%%%%%      % output of projection should have the size of the measured projection
+    %%%%%%%%%%      %put in alignment correction values from registration
+    %%%%%%%%%%      xout = (1:size(data,2)) - ceil(size(data,2)/2) + projection(ii).dx;     % RSD: DATA IS JUST PROJECTION DATA
+    %%%%%%%%%%      yout = (1:size(data,1)) - ceil(size(data,1)/2) + projection(ii).dy;
+    %%%%%%%%%%      
+    %%%%%%%%%%      % I [y x numOfsegments] Eq(3) of Liebi et al
+    %%%%%%%%%%      [proj_out_all, xout, yout] = arb_projection(data_synt_vol, X, Y, Z, Rot_exp_now, p, xout, yout);   % RSD: GET ESTIMATED INTENSITIES.
+    %%%%%%%%%%      data_synt_vol = []; % free up memory
+    %%%%%%%%%%      
+    %%%%%%%%%%      %%%calculating the error (difference between estimated intensity and measured data), taking poisson noise into account
+    %%%%%%%%%%      %auxillary functions, used in E and the gradient
+    %%%%%%%%%%      aux_diff_poisson = (sqrt(proj_out_all) - sqrt(data)) .* projection(ii).window_mask;
+    %%%%%%%%%%      error_norm = 2*sum(sum(sum(aux_diff_poisson.^2))) / numOfpixels; % error metric with poisson noise
+    cost_function = @SAXS_AD_cost_function;
+    current_projection = projection(ii) ; % RSD: Only broadcast the current projection to avoid parfor crash. 
+    [error_norm, AD_grad_coeff, aux_diff_poisson, proj_out_all] = SAXS_AD_forward_backward(cost_function, a_temp, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels);
     E = E + error_norm;
-    
     
     %RSD: ERROR IS FOUND. SOME PARTS HAVE TO BE CHANGED AND WRITTEN IN
     %PYTHON IN ORDER TO UTILISE PYTORCH AUTOGRAD.
+
+    %RSD: aux_diff_poisson is difference between created 2D intensity map and measured projection. (Mask utilised)
+    %RSD: Is used in backprojection to find aux_grad_poisson_vol. It is a 3D array formed by interpolation of aux_diff_poisson. 
+    %RSD: If this is the case, then it should be possible to interpolate the gradient instead?
     
     % When it is requested to have output projection and/or error, useful
     % for debugging
@@ -324,19 +338,30 @@ for ii = 1:length(projection)
     end
     %%%the gradients RSD: HERE THE GRADIENTS BEGIN.
     if find_grad
-        aux_grad_poisson =  aux_diff_poisson ./ (sqrt(proj_out_all) + 1e-10) / numOfpixels; 
-        aux_grad_poisson_vol = arb_back_projection(aux_grad_poisson, xout, yout, X, Y, Z, Rot_exp_now, p); 
+        %RSD: Not necessary when AD gradients. 
+        %aux_grad_poisson =  aux_diff_poisson ./ (sqrt(proj_out_all) + 1e-10) / numOfpixels; 
+        %aux_grad_poisson_vol = arb_back_projection(aux_grad_poisson, xout, yout, X, Y, Z, Rot_exp_now, p); 
+        
+        % RSD: Stop tracking of dlarrays since gradients are calculated.
+        error_norm = extractdata(error_norm);
+        E = extractdata(E);
+        aux_diff_poisson = extractdata(aux_diff_poisson);
+        proj_out_all = extractdata(proj_out_all);
         
         if find_coefficients
             % = conj( sum(a_lm*Y_lm) )*Ylm
             % [y x z numOfsegments numOforders] = repmat([1 numOfsegments numOfvoxels]) * [numOforders numOfsegments numOf voxels]
-            Ymn_aux_vol = permute(real(repmat(conj(sumlm_alm_Ylm), numOfCoeffs, 1, 1) .* Ylm), [3, 2, 1]);
-            Ymn_aux_vol = reshape(Ymn_aux_vol, ny, nx, nz, numOfsegments, numOfCoeffs);
-            grad_a = grad_a + 4*squeeze(sum(aux_grad_poisson_vol.*Ymn_aux_vol, 4));
-            Ymn_aux_vol = []; % free up memory
+            % RSD: Comment out to evaluate AD gradients instead.
+            %Ymn_aux_vol = permute(real(repmat(conj(sumlm_alm_Ylm), numOfCoeffs, 1, 1) .* Ylm), [3, 2, 1]);
+            %Ymn_aux_vol = reshape(Ymn_aux_vol, ny, nx, nz, numOfsegments, numOfCoeffs);
+            %grad_a = grad_a + 4*squeeze(sum(aux_grad_poisson_vol.*Ymn_aux_vol, 4));
+            
+            %RSD: Need to reshape
+            AD_grad_coeff = extractdata(AD_grad_coeff); % RSD: No longer need for dlarrays
+            grad_a = reshape(AD_grad_coeff, ny, nx, nz);
+            %Ymn_aux_vol = []; % free up memory
         end
         Ylm = []; %#ok<*NASGU> % free up memory
-        toc
         
         
         if find_orientation
@@ -375,33 +400,6 @@ for ii = 1:length(projection)
             
             if any(m) % full calculations
                 error('Calculations for m ~= 0 need to be checked')
-                Ylm_temp = bsxpagemult(a_temp1, block_cos_theta_powers);
-                
-                %auxillary variables for gradient of error matrix in respect to
-                %theta_struct and phi_struct in each voxel
-                temp_theta_1 = dqpp_dthetaop(2, :, :) .* x_sh_cut - dqpp_dthetaop(1, :, :) .* y_sh_cut ./ x_sh_cut.^2;
-                temp_theta_2 = dqpp_dthetaop(3, :, :);
-                
-                temp_phi_1 = dqpp_dphiop(2, :, :) .* x_sh_cut - dqpp_dphiop(1, :, :) .* y_sh_cut ./ x_sh_cut.^2;
-                temp_phi_2 = dqpp_dphiop(3, :, :);
-                
-                expr1 = Ylm_temp .* (cos(phi_sh_cut).^2)*1i;
-                expr2 = Ylm_temp .* (cos_theta_sh_cut./sin_theta_sh_cut.^2) + ...
-                    YlmPLUS1 .* (exp(-1i*phi_sh_cut)./sin_theta_sh_cut);
-                
-                YlmPLUS1 = []; % free up memory
-                phi_sh_cut = [];
-                sin_theta_sh_cut = [];
-                block_cos_theta_powers = [];
-                
-                %auxillary variable for the gradient (numOfvoxels x numofsegments)
-                grad_theta_struct_aux_vol = real((expr1 .* temp_theta_1 - expr2 .* temp_theta_2) .* conj(sumlm_alm_Ylm));
-                
-                %auxillary variable for the gradient (numOfvoxels x numofsegments)
-                grad_phi_struct_aux_vol = real((expr1 .* temp_phi_1 - expr2 .* temp_phi_2) .* conj(sumlm_alm_Ylm));
-                
-                expr1 = [];
-                expr2 = [];
                 
             else % optimized version - only valid for m = 0
                 %auxillary variables for gradient of error matrix with respect to
@@ -463,7 +461,7 @@ for ii = 1:length(projection)
             grad_theta_struct_aux_vol = [];
             grad_phi_struct_aux_vol = [];
         end
-    end
+    end %RSD: Here find_grad ends. 
     
     sumlm_alm_Ylm = []; % free up memory
 end
