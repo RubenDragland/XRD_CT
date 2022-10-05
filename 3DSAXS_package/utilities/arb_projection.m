@@ -219,17 +219,18 @@ if strcmpi(method,'nearest') && p.mode
         proj_out = dlarray(zeros(numel(yout), numel(xout)) ) ; %RSD: Hopefully this is the lacking part of the interpolation. REMEMBER THIS CHANGE!
         for ii = 1:numel(Ax)
             if (Ax(ii) > 0)&&(Ax(ii) <= size(proj_out,2))&&(Ay(ii) > 0)&&(Ay(ii) <= size(proj_out,1)) % RSD: Weird that the last legal index is not included? I kind of disagree. %RSD: EDIT: changed it.
-                proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + tomo_obj_all(ii); % RSD: BIT UNSURE WHAT IS SUPPOSED TO BE HERE. HOPE FOR THE BEST
-            %else
-            %    proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + 1e-10*tomo_obj_all(ii); %RSD: Keep trace.
+                proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + tomo_obj_all( (jj-1)*numel(Ax) + ii); % RSD: BIT UNSURE WHAT IS SUPPOSED TO BE HERE. SEEMS TO BE WRONG.
+                %display(tomo_obj_all(ii) );
             end % RSD: When tomo_obj_all(ii) never adds anything to proj_out, it is no longer traced...
             %proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + tomo_obj_all(ii) * ( (Ax(ii) > 0)&&(Ax(ii) < size(proj_out,2))&&(Ay(ii) > 0)&&(Ay(ii) < size(proj_out,1) ) ); % RSD: 0 or 1. Hopefully traceable. 
         end
         proj_out_all(:,:,jj) = proj_out ; %RSD: Check if this solves issue with untraceable in dlfeval.
     end
-    if all(proj_out_all == 0)
-        proj_out_all(:,:,jj) = 1e-10 * tomo_obj_all(ii) ; %RSD: Do not keep. Only prove concept. Concept proven.
-    end
+    %if all(proj_out_all == 0)
+    %    proj_out_all(1,1,jj) = 1e-10 * tomo_obj_all(1) ; 
+    %RSD: Do not keep. Only prove concept. Concept proven. 
+    %RSD: Have no other solution than to keep this bug or write in python.
+    %end
     %RSD: Issue remains to ensure that the dlarray remains...
 elseif strcmpi(method,'nearest') 
     % RSD: If Nearest neighbours and symbolic calculation
@@ -246,7 +247,8 @@ elseif strcmpi(method,'nearest')
         proj_out = zeros(numel(yout), numel(xout))  ; %RSD: Hopefully this is the lacking part of the interpolation. REMEMBER THIS CHANGE!
         for ii = 1:numel(Ax)
             if (Ax(ii) > 0)&&(Ax(ii) <= size(proj_out,2))&&(Ay(ii) > 0)&&(Ay(ii) <= size(proj_out,1)) %RSD: EDIT: Changed limits. 
-                proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + tomo_obj_all(ii); % RSD: BIT UNSURE WHAT IS SUPPOSED TO BE HERE. HOPE FOR THE BEST
+                %proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + tomo_obj_all(ii); % RSD: BIT UNSURE WHAT IS SUPPOSED TO BE HERE. HOPE FOR THE BEST
+                proj_out(Ay(ii),Ax(ii)) = proj_out(Ay(ii),Ax(ii)) + tomo_obj_all( (jj-1)*numel(Ax) + ii); %RSD: Only thing that makes sense. EDIT: Will find the answer for the asymmetric ones. 
             end
         end
         proj_out_all(:,:,jj) = proj_out;

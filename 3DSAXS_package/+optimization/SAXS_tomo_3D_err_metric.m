@@ -212,10 +212,10 @@ z = (1:N(3)) - ceil(N(3)/2);
 % dimension N(1), then it appears in the second position of the meshgrid,
 % because meshgrid is (x,y,z) and size is (y,x,z)
 
-tic
+
 %calculate for all projections
-%parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
-for ii = 1:length(projection)
+parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
+%for ii = 32:length(projection)
     
     data = double(projection(ii).data);
     
@@ -336,7 +336,7 @@ for ii = 1:length(projection)
             Ymn_aux_vol = []; % free up memory
         end
         Ylm = []; %#ok<*NASGU> % free up memory
-        toc
+        
         
         
         if find_orientation

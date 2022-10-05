@@ -222,8 +222,8 @@ z = (1:N(3)) - ceil(N(3)/2);
 % because meshgrid is (x,y,z) and size is (y,x,z)
 
 %calculate for all projections
-%parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
-for ii = 1:length(projection) % RSD: Debug for loop  
+parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
+%for ii = 1:length(projection) % RSD: Debug for loop  
     
     data = double(projection(ii).data);
     
@@ -318,6 +318,10 @@ for ii = 1:length(projection) % RSD: Debug for loop
     cost_function = @SAXS_AD_cost_function;
     current_projection = projection(ii) ; % RSD: Only broadcast the current projection to avoid parfor crash. 
     [error_norm, AD_grad_coeff, aux_diff_poisson, proj_out_all] = SAXS_AD_forward_backward(cost_function, a_temp, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels);
+    
+    if find_grad
+        error_norm = extractdata(error_norm); 
+    end
     E = E + error_norm;
     
     %RSD: ERROR IS FOUND. SOME PARTS HAVE TO BE CHANGED AND WRITTEN IN
@@ -343,8 +347,8 @@ for ii = 1:length(projection) % RSD: Debug for loop
         %aux_grad_poisson_vol = arb_back_projection(aux_grad_poisson, xout, yout, X, Y, Z, Rot_exp_now, p); 
         
         % RSD: Stop tracking of dlarrays since gradients are calculated.
-        error_norm = extractdata(error_norm);
-        E = extractdata(E);
+        %error_norm = extractdata(error_norm);
+        %E = extractdata(E);
         aux_diff_poisson = extractdata(aux_diff_poisson);
         proj_out_all = extractdata(proj_out_all);
         
@@ -358,7 +362,7 @@ for ii = 1:length(projection) % RSD: Debug for loop
             
             %RSD: Need to reshape
             AD_grad_coeff = extractdata(AD_grad_coeff); % RSD: No longer need for dlarrays
-            grad_a = reshape(AD_grad_coeff, ny, nx, nz);
+            grad_a = grad_a + reshape(AD_grad_coeff, ny, nx, nz); %RSD: Not completely correct. Does not work in parallel. But to add all grad_a gives NaN.
             %Ymn_aux_vol = []; % free up memory
         end
         Ylm = []; %#ok<*NASGU> % free up memory
