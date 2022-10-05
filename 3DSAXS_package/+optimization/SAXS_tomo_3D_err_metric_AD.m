@@ -212,7 +212,7 @@ E = 0;
 unit_q_beamline = [sin(theta_det).*cos(phi_det); sin(theta_det).*sin(phi_det);cos(theta_det)]; 
 
 N = [ny nx nz]; % Size of tomogram  
-x = (1:N(2)) - ceil(N(2)/2);
+x = (1:N(2)) - ceil(N(2)/2); %RSD: Is everything fine with this?
 y = (1:N(1)) - ceil(N(1)/2);
 z = (1:N(3)) - ceil(N(3)/2);
 [X, Y, Z] = meshgrid(x, y, z); % (x,y,z) (2,1,3) % RSD: Is everything ok with this?
@@ -222,8 +222,8 @@ z = (1:N(3)) - ceil(N(3)/2);
 % because meshgrid is (x,y,z) and size is (y,x,z)
 
 %calculate for all projections
-parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
-%for ii = 1:length(projection) % RSD: Debug for loop  
+%parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
+for ii = 1:length(projection) % RSD: Debug for loop  
     
     data = double(projection(ii).data);
     
@@ -368,7 +368,7 @@ parfor ii = 1:length(projection) %use parallel processing for the loop over all 
         Ylm = []; %#ok<*NASGU> % free up memory
         
         
-        if find_orientation
+        if find_orientation   % RSD: Possible that all of this is unnecessary
             % dq''/dthetaop = d(R_str*q')/dthetaop
             % [3 numOfsegments numOfvoxels] = [3 3 numOfvoxels]*[3 numofsegments] 
             % MGS - note, this is not a good name, the output is not a
