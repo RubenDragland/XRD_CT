@@ -7,6 +7,7 @@ from autograd import elementwise_grad as egrad
 import autograd.numpy as anp
 
 import time, timeit
+import sys
 
 
 # Functions/gradients expression f = ln(x1) + x1*x2 + sin(x2)
@@ -79,8 +80,9 @@ def AD_torch(func, x1: np.array, x2: np.array )-> torch.tensor:
 
     x = torch.tensor(np.array([x1, x2]) , requires_grad=True) 
     y = func(x[0], x[1]) # Assumes expression implemented using torch.
-
-    y.backward( torch.tensor( np.ones(len(x1)) ) )
+    print(y)
+    #y.backward( torch.tensor( np.ones(len(x1)) ) )
+    y.backward( )
     return x.grad
 
 def AD_torch_general(func, *args, **kwargs) -> torch.tensor:
@@ -138,7 +140,30 @@ def numerical_diff_general(f, *args, **kwargs):
         grads[key] = ( f( *args, elem + h, ) - f( *args, elem-h) )/ (2*h)
     return grads
 
+
+def interpolation_test(x1, x2):
+
+    x = torch.zeros(1, requires_grad=True)
+    y = torch.zeros(1, requires_grad=True)
+
+    for i in range( len(x1) ):
+        if (x1[i]>9) and (x2[i]>9):
+            x = x+ x1[i]
+            y = y+ x2[i]
+
+    return x**2 + y**2#x1**2 + x2**2#x**2 + y**2
+
+
 if __name__ == "__main__":
+
+    print(np.arange(1,10,1, dtype=np.float32))
+
+    grad = AD_torch(interpolation_test, np.arange(1,10,1, dtype=np.float32) , np.arange(1,10,1, dtype=np.float32) ) 
+
+    print(grad)
+
+
+    sys.exit()
 
     num_elem = int(1e7)
 
