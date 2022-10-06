@@ -185,7 +185,7 @@ ftol = [];  %relative function tolerance (empty for default = 1e-3)
 xtol = [];  %absolute solution tolerance (empty for default = 1e-3)
 
 if AD
-    opt_out = optimization.cgmin1('optimization.SAXS_tomo_3D_err_metric_AD', opt_inputs, itmax, ftol, xtol, p, s, opt_projection); %RSD: Call AD error metric instead.
+    opt_out = optimization.cgmin1('optimization.SAXS_tomo_3D_err_metric_AD_all', opt_inputs, itmax, ftol, xtol, p, s, opt_projection); %RSD: Call AD error metric instead.
 else
     opt_out = optimization.cgmin1('optimization.SAXS_tomo_3D_err_metric', opt_inputs, itmax, ftol, xtol, p, s, opt_projection);
 end

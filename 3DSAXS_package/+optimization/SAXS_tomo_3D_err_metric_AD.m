@@ -104,6 +104,7 @@ mask3D = s.mask3D;
 numOfpixels = numel(projection)*nx*ny;
 numOfordersopt = sum(logical(p.opt_coeff)); % Number of coefficients that are being optimized
 
+
 %opt_inputs is the optimization vector, containing theta_struct, phi_struct and a, the coefficents of the spherical harmonics
 if find_orientation
     theta_struct = opt_inputs(1:numOfvoxels);
@@ -138,6 +139,7 @@ grad_a = zeros(ny, nx, nz, numOfCoeffs);
 
 grad_theta_struct = zeros(ny, nx, nz);
 grad_phi_struct   = zeros(ny, nx, nz);
+
 
 sin_theta_struct = reshape(sin(theta_struct), 1, 1, numOfvoxels);
 cos_theta_struct = reshape(cos(theta_struct), 1, 1, numOfvoxels);

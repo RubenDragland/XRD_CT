@@ -227,7 +227,7 @@ if strcmpi(method,'nearest') && p.mode
         proj_out_all(:,:,jj) = proj_out ; %RSD: Check if this solves issue with untraceable in dlfeval.
     end
     %if all(proj_out_all == 0)
-    %    proj_out_all(1,1,jj) = 1e-10 * tomo_obj_all(1) ; 
+    %    proj_out_all(1,1,jj) = 0; %1e-10 * tomo_obj_all(1) ; 
     %RSD: Do not keep. Only prove concept. Concept proven. 
     %RSD: Have no other solution than to keep this bug or write in python.
     %end
@@ -254,6 +254,11 @@ elseif strcmpi(method,'nearest')
         proj_out_all(:,:,jj) = proj_out;
     end
     
+    %RSD: Debugging.
+    if all(proj_out_all == 0)
+        display("True");
+    end
+    
 elseif strcmpi(method,'bilinear')
     %%% Bilinear interpolation %%%
     Ax = floor(Xp-min_xout+1); % Index of output image that corresponds to the voxel
@@ -263,6 +268,11 @@ elseif strcmpi(method,'bilinear')
     
     size_proj_out_all = uint64([numel(yout), numel(xout), size(tomo_obj_all, 4)]); % RSD: SIZES OF ARRAYS?
     proj_out_all = sum_projection(size_proj_out_all, tomo_obj_all, Ax, Ay, Tx, Ty);
+    
+    %RSD: Debugging
+    if all(proj_out_all == 0)
+        display("True");
+    end
     
 else
     error('Method was not recognized')

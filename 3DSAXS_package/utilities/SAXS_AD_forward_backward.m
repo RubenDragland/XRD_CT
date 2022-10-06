@@ -31,18 +31,17 @@
 
 
 function [error_norm, ad_grad, aux_diff_poisson, proj_out_all ] = SAXS_AD_forward_backward(func, a_temp, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels ) % RSD: EXPAND TO OTHER UTILITIES LATER.
-if find_grad
-    a_temp = dlarray(a_temp); % RSD: Also fix function call. %RSD: gpuArray( dlarray(a_temp ) ); Need to get it working on server. 
-    [error_norm, ad_grad, aux_diff_poisson, proj_out_all] = dlfeval(@SAXS_AD_cost_function, a_temp, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels);
-else
-    %p_method_temp = p.method; % RSD: Save chosen method. Change to bilinear for speed in Mex-function. Change back.
-    %p.method = 'bilinear';
-    [error_norm, ad_grad, aux_diff_poisson, proj_out_all] = SAXS_AD_cost_function( a_temp, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels);
-    %p.method = p_method_temp;
-end
-% RSD: Another weird error message: Hard code the cost function instead
-% RSD: And remember to change back.
-
+    if find_grad
+        a_temp = dlarray(a_temp); % RSD: Also fix function call. %RSD: gpuArray( dlarray(a_temp ) ); Need to get it working on server. 
+        [error_norm, ad_grad, aux_diff_poisson, proj_out_all] = dlfeval(@SAXS_AD_cost_function, a_temp, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels);
+    else
+        %p_method_temp = p.method; % RSD: Save chosen method. Change to bilinear for speed in Mex-function. Change back.
+        %p.method = 'bilinear';
+        [error_norm, ad_grad, aux_diff_poisson, proj_out_all] = SAXS_AD_cost_function( a_temp, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels);
+        %p.method = p_method_temp;
+    end
+    % RSD: Another weird error message: Hard code the cost function instead
+    % RSD: And remember to change back.
 
 end
 
@@ -86,7 +85,7 @@ if find_grad
     try
         ad_grad = dlgradient(error_norm, a_temp);
     catch
-        ad_grad = dlarray(zeros(size(a_temp)) ); % RSD: Assuming the gradients are 0 if none elements of original dlarray are transferred to the projection.
+        ad_grad = dlarray( zeros(size(a_temp)) ); % RSD: Assuming the gradients are 0 if none elements of original dlarray are transferred to the projection.
     end
 else
     ad_grad = [];   %RSD: Return empty if no gradient is to be calculated.
