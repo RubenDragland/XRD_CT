@@ -77,9 +77,9 @@ else
     find_grad = (nargout >= 2);
     
     if find_grad 
-        p.method = 'nearest';       % RSD: Ensure nearest interpolation when calculating gradients. 
+        %p.method = 'nearest';       % RSD: Ensure nearest interpolation when calculating gradients. 
         p.volume_upsampling = 0;    % RSD: Same applies to upsampling
-        p.filter_2D = 0;            % RSD: Filter is not yet implemented for AD
+        %p.filter_2D = 0;            % RSD: Filter is not yet implemented for AD. RSD: EDIT: Ready for testing. 
     
     end
 
@@ -199,6 +199,10 @@ z = (1:N(3)) - ceil(N(3)/2);
 % dimension N(1), then it appears in the second position of the meshgrid,
 % because meshgrid is (x,y,z) and size is (y,x,z)
 
+%RSD: Memory management.
+%aux_vars = {'x','y','z' };
+%clear(aux_vars{:});
+
 
 %%% RSD: Change of order finished
 
@@ -210,7 +214,7 @@ if find_grad && find_orientation && find_coefficients
 
 elseif find_grad && find_orientation
 
-    [E, grad_a, grad_theta_struct, grad_phi_struct] = SAXS_AD_all_forward_backward(theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels); %RSD: Placeholder. Idea, only one file with some if/else. 
+    [E, ~, grad_theta_struct, grad_phi_struct] = SAXS_AD_all_forward_backward(theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels); %RSD: Placeholder. Idea, only one file with some if/else. 
 
 %elseif find_grad && find_coefficients This part we already have. grad and no grad is finished implemented within each other.
 
@@ -233,10 +237,13 @@ else
         -sin_phi_struct                 , cos_phi_struct                  , zeros_struct     ; ...
         sin_theta_struct.*cos_phi_struct, sin_theta_struct.*sin_phi_struct, cos_theta_struct];
 
+    %RSD: If no regularization, consider to delete sin_theta_struct etc after creating the rot_str matrix to save memory. 
+    %aux_vars = {"sin_theta_struct", "cos_theta_struct", "sin_phi_struct", "cos_phi_struct" };
+    %clear(aux_vars{:})
 
     %calculate for all projections
-    %parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
-    for ii = 1:length(projection) % RSD: Debug for loop  
+    parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
+    %for ii = 1:length(projection) % RSD: Debug for loop  
         
         data = double(projection(ii).data);
         
@@ -272,6 +279,10 @@ else
         % coefficients and also excludes m ~= 0
         if all(mod(l,2) == 0) && all(m == 0) % Make sure that all l is even, and that all m = 0
             block_cos_theta_powers = double([ones_struct; cumprod(repmat(cos_theta_sh_cut.^2, numOfCoeffs-1, 1), 1)]);    % RSD: ONES AND CUMULATIVE PRODUCT OF CREATED NDARRAY.
+
+            %RSD: Memory
+            
+
             % As a reminder, when generalizing to any scrambling of coefficient
             % order (e.g. s.a([3 2 1 4]) I also mistakenly changed the order of
             % the powers of cos(theta), this was a mistake because in
@@ -293,36 +304,24 @@ else
         % After multiplication with the coefficients of the Legendre polynomials Ylm becomes the properly normalized SH functions
         %   [numOforder numOfsegments numOfvoxels] = [numOforder numOforder]*[numOforder numOfsegments numOfvoxels]    .
         Ylm = bsxpagemult(double(Ylm_coef), block_cos_theta_powers);  % RSD: RETRIEVE THE SH FUNCTION FROM MATRIX PRODUCT WITH ARRAY OF POWERS OF COSINE. YLM-COEFFICIENTS MATCHED WITH ITS "COSINE-POLYNOMIAL"
+
+        %aux_vars = {"q_pp", "cos_theta_sh_cut", "unit_q_object", "block_theta_powers"};
+        %clear(aux_vars{:})
         
         % sum_lm(a_lm*Y_lm)
         %   [1 numOfsegments numOfvoxels] = [1 numOforders numOfvoxels] * [numOforder numOfsegments numOfvoxels]
         
-        
         cost_function = @SAXS_AD_cost_function;
         current_projection = projection(ii) ; % RSD: Only broadcast the current projection to avoid parfor crash. 
-        [error_norm, AD_grad_coeff, aux_diff_poisson, proj_out_all] = SAXS_AD_forward_backward(cost_function, a_temp, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels);
+        [error_norm, AD_grad_coeff] = SAXS_AD_forward_backward(cost_function, a_temp, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels);
         
         if find_grad
             error_norm = extractdata(error_norm); 
         end
         E = E + error_norm;
 
-        %RSD: Possibly escape the if-statement here. Should be the same from here.
-        
-        % When it is requested to have output projection and/or error, useful
-        % for debugging
-        if return_synth_proj
-            proj_out(ii).projection = proj_out_all;
-            proj_out(ii).errorplot = aux_diff_poisson; % Spatially resolved error
-            proj_out(ii).error = error_norm;           % error metric with poisson noise
-            proj_out(ii).rotx = projection(ii).rot_x;
-            proj_out(ii).roty = projection(ii).rot_y;
-        end
         %%%the gradients RSD: Many changes to the code here to finish the automatic differentiation.
         if find_grad
-
-            aux_diff_poisson = extractdata(aux_diff_poisson);
-            proj_out_all = extractdata(proj_out_all);
             
             if find_coefficients % RSD: May be abundant if, but keep for now
                 

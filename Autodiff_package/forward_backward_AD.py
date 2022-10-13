@@ -19,8 +19,6 @@ def forward_backward(cost_function, a_temp: torch.tensor, Ylm, voxel_dims, numOf
         a_temp.requires_grad_(True) # Assume transormed to torch. May have to adapt AD_torch_general from initial_comparisons.
 
 
-
-
     error_norm, aux_diff_poisson, proj_out_all  = cost_function( a_temp, Ylm, voxel_dims, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels ) 
 
     if find_grad:

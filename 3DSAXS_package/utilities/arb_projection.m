@@ -106,11 +106,11 @@ else
     filter_2D = 3; % Strength of filter applied to image
 end
 
-if isfield(p, 'mode') % Assurance that only nearest for AD
-    if p.mode
-        method = 'nearest';
-    end
-end
+%if isfield(p, 'mode') % Assurance that only nearest for AD
+%    if p.mode
+%        method = 'nearest';
+%    end
+%end
 
 % Optional input window, there can be a subpixel offset
 % if nargin == 6
@@ -203,7 +203,49 @@ end
 min_xout = min(xout);
 min_yout = min(yout);
 
-if strcmpi(method,'nearest') && p.mode
+if strcmpi(method,'bilinear') && p.mode
+
+    %%% Bilinear interpolation %%%
+    Ax = floor(Xp-min_xout+1); % Index of output image that corresponds to the voxel
+    Ay = floor(Yp-min_yout+1); % Index of output image that corresponds to the voxel
+    Tx = (Xp-min_xout+1) - Ax; % Variable from 0 to 1 from x distance of pixel Ax to Ax+1 where the voxel hits
+    Ty = (Yp-min_yout+1) - Ay;
+    
+    size_proj_out_all = uint64([numel(yout), numel(xout), size(tomo_obj_all, 4)]); % RSD: SIZES OF ARRAYS?
+    proj_out_all = dlarray( zeros(size_proj_out_all) );
+    nRows = size_proj_out_all(1);
+    page_in = numel(Ax); %size(Ax,1) * size(Ax,2) ; %RSD: Apparently Ax rows times Ax columns, where columns are the remaining dimensions
+    page_out = nRows * numel(xout); %RSD: nRows times nCols. 
+
+    for ii = 1:numel(Ax)
+
+        if (Ax(ii) > 0)&&(Ax(ii) < size_proj_out_all(2) )&&(Ay(ii) > 0)&&(Ay(ii) < size_proj_out_all(1) ) 
+
+            ind = Ay(ii) + nRows*Ax(ii) +1; %RSD: Adjust by 1 compared to cpp. Hope interpolation is not shifted. 
+
+            temp1 = Tx(ii)*Ty(ii);
+            temp2 = Tx(ii)*(1-Ty(ii) );
+            temp3 = (1-Tx(ii))*Ty(ii);
+            temp4 = (1-Tx(ii))*(1-Ty(ii));
+
+            for jj = 1:size(tomo_obj_all, 4)
+
+                shift_in = (jj-1)*page_in + ii ; %ii + jj*page_in; % (jj-1)*numel(Ax) + ii
+                shift_out = ind + (jj-1)*page_out; %RSD: Note matlab vs cpp. Somewhat unsure if this is correct. 
+
+                proj_out_all(shift_out) =  proj_out_all(shift_out) + tomo_obj_all(shift_in) * temp1;
+                proj_out_all(shift_out-1) = proj_out_all(shift_out-1) + tomo_obj_all(shift_in) * temp2;
+                proj_out_all(shift_out-nRows) = proj_out_all(shift_out-nRows) + tomo_obj_all(shift_in) * temp3;
+                proj_out_all(shift_out-nRows-1) = proj_out_all(shift_out-nRows-1) + tomo_obj_all(shift_in) * temp4;
+
+
+            end
+
+        end
+        
+    end
+
+elseif strcmpi(method,'nearest') && p.mode
     %%% Nearest neighbor %%%
     % Assigns value of voxel to the nearest pixel
     Ax = round(Xp-min_xout+1); % Index of output image that corresponds to the voxel
@@ -294,8 +336,22 @@ end
 if filter_2D > 0
     filt_2D = filt_2D.'*filt_2D;
     filt_2D = filt_2D/sum(filt_2D(:));
-    for jj = 1:size(tomo_obj_all,4)
-        proj_out_all(:,:,jj) = conv2(proj_out_all(:,:,jj), filt_2D, 'same');
+    if p.mode
+        bias = zeros( 1 ); 
+        proj_out_all = dlconv(proj_out_all, filt_2D, bias, DataFormat = "SSU", Padding = "same"); %RSD: Believe this will work. 
+
+        %RSD: Evt.
+        %for jj = 1:size(proj_out_all,3)
+        %    proj_out_all(:,:,jj) = dlconv(proj_out_all(:,:,jj), filt_2D, 'same');
+        %end
+        %RSD: Annoying functionality. Apply the convolutional theorem instead
+        %proj_out_all = ifft( fft(proj_out_all) .* fft(filt_2D) ); Only supported for unformatted input arrays
+    
+    else
+
+        for jj = 1:size(tomo_obj_all,4)
+            proj_out_all(:,:,jj) = conv2(proj_out_all(:,:,jj), filt_2D, 'same');
+        end
     end
 end
 
