@@ -7,8 +7,8 @@ function [E, grad_a, grad_theta_struct, grad_phi_struct ] = SAXS_AD_all_forward_
     grad_theta_struct = zeros(ny, nx, nz);
     grad_phi_struct   = zeros(ny, nx, nz);
 
-    %parfor ii = 1: length(projection)
-    for ii = 1: length(projection) %RSD: Debugging mode. 
+    parfor ii = 1: length(projection)
+    %for ii = 1: length(projection) %RSD: Debugging mode. 
         current_projection = projection(ii);
 
         if find_coefficients
