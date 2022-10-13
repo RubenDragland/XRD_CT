@@ -98,7 +98,7 @@ m = [s.a.m];
 nx = p.nx;                            
 ny = p.ny;
 nz = p.nz;
-numOfsegments = p.numsegments;                      % number of segements the saxs data is averaged (default is 16)
+numOfsegments = p.numsegments;          % number of segements the saxs data is averaged (default is 16)
 numOfvoxels = p.numOfvoxels;            % dimension of tomogram
 mask3D = s.mask3D;
 numOfpixels = numel(projection)*nx*ny;
@@ -206,11 +206,11 @@ z = (1:N(3)) - ceil(N(3)/2);
 
 if find_grad && find_orientation && find_coefficients
 
-    E, grad_a, grad_theta_struct, grad_phi_struct, aux_diff_poisson, proj_out_all = SAXS_AD_all_forward_backward(theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef); %RSD: Placeholder
+    [E, grad_a, grad_theta_struct, grad_phi_struct] = SAXS_AD_all_forward_backward(theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels); %RSD: Placeholder
 
 elseif find_grad && find_orientation
 
-    E, grad_theta_struct, grad_phi_struct, aux_diff_poisson, proj_out_all = SAXS_AD_all_forward_backward(theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef); %RSD: Placeholder. Idea, only one file with some if/else. 
+    [E, grad_a, grad_theta_struct, grad_phi_struct] = SAXS_AD_all_forward_backward(theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels); %RSD: Placeholder. Idea, only one file with some if/else. 
 
 %elseif find_grad && find_coefficients This part we already have. grad and no grad is finished implemented within each other.
 
@@ -235,8 +235,8 @@ else
 
 
     %calculate for all projections
-    parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
-    %for ii = 1:length(projection) % RSD: Debug for loop  
+    %parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
+    for ii = 1:length(projection) % RSD: Debug for loop  
         
         data = double(projection(ii).data);
         

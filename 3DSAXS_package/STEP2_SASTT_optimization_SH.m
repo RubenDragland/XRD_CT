@@ -179,7 +179,7 @@ p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 
 p.itmax = 25; %20                % maximum number of iterations: about 20
 p.skip_projections = 1;         % = 1, for not skipping projections
-p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
+p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
 p.method = "bilinear";          % RSD: Choose method of interpolation.
 
 if p.mode
@@ -258,8 +258,16 @@ p.regularization = 0;             % Sieves regularization on the coefficients. (
 p.regularization_angle = 0;       % Regularization of the angles. (true or false)
 p.regularization_angle_coeff = 0; % mu for regularization of angle, needs to be found with L-curve
 
-p.itmax = 50; %30;           % maximum number of iterations: about 50
+p.itmax = 30; %50; %30;           % maximum number of iterations: about 50
 p.skip_projections = 1; % = 1, for not skipping projections
+
+%RSD: Watch out for these settings. 
+p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
+p.method = "nearest";          % RSD: Choose method of interpolation.
+
+if p.mode
+    p.method = "nearest"        % RSD: Another safety net for method of interpolation.
+end
 
 p.avoid_wrapping = 1;   % Avoid wrapping of the angle (to keep angle between 0 and 2pi) (true or false)
 
@@ -280,6 +288,7 @@ l = [0 2 4];  % Polar order
 m = [0 0 0];  % Azimuthal order
 
 %%%define ratio of coefficient (fixed in this step) for bone: 1, -3, 6,
+%%%%RSD: Ratios should be changed. Have carbon knot.
 a_ratio = [1, -3, 6];
 
 for ii = 1:numel(l)
@@ -289,7 +298,7 @@ for ii = 1:numel(l)
 end
 
 %optimize
-[p, s] = optimization.optimize_SH(projection, p, s);
+[p, s] = optimization.optimize_SH(projection, p, s, p.mode); %RSD: remember AD (p.mode)
 
 %% Step 2.5: optimization of SH coefficients: non symmetric
 % optimize the other coefficients a2, a4 and a6, keeping a0 constant

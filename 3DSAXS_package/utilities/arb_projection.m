@@ -255,9 +255,9 @@ elseif strcmpi(method,'nearest')
     end
     
     %RSD: Debugging.
-    if all(proj_out_all == 0)
-        display("True");
-    end
+    %if all(proj_out_all == 0)
+    %    display("True");
+    %end
     
 elseif strcmpi(method,'bilinear')
     %%% Bilinear interpolation %%%
@@ -270,9 +270,9 @@ elseif strcmpi(method,'bilinear')
     proj_out_all = sum_projection(size_proj_out_all, tomo_obj_all, Ax, Ay, Tx, Ty);
     
     %RSD: Debugging
-    if all(proj_out_all == 0)
-        display("True");
-    end
+    %if all(proj_out_all == 0)
+    %    display("True");
+    %end
     
 else
     error('Method was not recognized')

@@ -1,37 +1,36 @@
 
 
-function [E, grad_a, grad_theta_struct, grad_phi_struct, aux_diff_poisson, proj_out_all ] = SAXS_AD_all_forward_backward(theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef)
+function [E, grad_a, grad_theta_struct, grad_phi_struct ] = SAXS_AD_all_forward_backward(theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels)
     
     E = 0; %RSD: Init error. 
     grad_a = zeros(ny, nx, nz, numOfCoeffs); %RSD: Init grads
     grad_theta_struct = zeros(ny, nx, nz);
     grad_phi_struct   = zeros(ny, nx, nz);
 
-    parfor ii = 1: length(projection)
-
+    %parfor ii = 1: length(projection)
+    for ii = 1: length(projection) %RSD: Debugging mode. 
         current_projection = projection(ii);
 
         if find_coefficients
-            a_temp = dlarray(a_temp);
+            a_temp_it = dlarray(a_temp);
+        else
+            a_temp_it = double(a_temp); %RSD: Temp variable must be set before it is used. 
         end
 
-        theta_struct = dlarray(theta_struct);
-        phi_struct = dlarray(phi_struct);
+        theta_struct_it = dlarray(theta_struct); %RSD: Need new names due to parallel for-loop.
+        phi_struct_it = dlarray(phi_struct);
 
         if find_coefficients %RSD: Consider to remove this if/else. 
-            error_norm, AD_grad_coeffs, AD_grad_theta, AD_grad_phi, aux_diff_poisson, proj_out_all = dlfeval(@SAXS_AD_all_cost_function, theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients );
+            [error_norm, AD_grad_coeffs, AD_grad_theta, AD_grad_phi, aux_diff_poisson, proj_out_all] = dlfeval(@SAXS_AD_all_cost_function, theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels );
             
-            AD_grad_coeff = extractdata(AD_grad_coeff); % RSD: No longer need for dlarrays
+            AD_grad_coeff = extractdata(AD_grad_coeffs); % RSD: No longer need for dlarrays
             grad_a = grad_a + reshape(AD_grad_coeff, ny, nx, nz, numOfCoeffs);
         else
-            error_norm, AD_grad_theta, AD_grad_phi, aux_diff_poisson, proj_out_all = dlfeval(@SAXS_AD_all_cost_function, theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients);
+            [error_norm, AD_grad_coeffs, AD_grad_theta, AD_grad_phi, aux_diff_poisson, proj_out_all] = dlfeval(@SAXS_AD_all_cost_function, theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels);
         end
 
         error_norm = extractdata(error_norm);
         E = E + error_norm;
-
-        aux_diff_poisson = extractdata(aux_diff_poisson);
-        proj_out_all = extractdata(proj_out_all);
 
         AD_grad_theta = extractdata(AD_grad_theta);
         grad_theta_struct = grad_theta_struct + reshape(AD_grad_theta, ny, nx, nz); 
@@ -42,6 +41,9 @@ function [E, grad_a, grad_theta_struct, grad_phi_struct, aux_diff_poisson, proj_
         return_synth_proj = 0; %RSD: Manual debug param.
 
         if return_synth_proj
+            aux_diff_poisson = extractdata(aux_diff_poisson); 
+            proj_out_all = extractdata(proj_out_all);
+
             proj_out(ii).projection = proj_out_all;
             proj_out(ii).errorplot = aux_diff_poisson; % Spatially resolved error
             proj_out(ii).error = error_norm;           % error metric with poisson noise
@@ -54,7 +56,7 @@ function [E, grad_a, grad_theta_struct, grad_phi_struct, aux_diff_poisson, proj_
 end
 
 
-function [ error_norm, ad_grad_coeffs, ad_grad_theta, ad_grad_phi, aux_diff_poisson, proj_out_all] = SAXS_AD_all_cost_function(theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients )
+function [ error_norm, ad_grad_coeffs, ad_grad_theta, ad_grad_phi, aux_diff_poisson, proj_out_all] = SAXS_AD_all_cost_function(theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels )
     
     
     data = double(current_projection.data) ; %RSD: Change relative to the other cost function.
@@ -66,6 +68,9 @@ function [ error_norm, ad_grad_coeffs, ad_grad_theta, ad_grad_phi, aux_diff_pois
     sin_phi_struct = reshape(sin(phi_struct), 1, 1, numOfvoxels);
     cos_phi_struct = reshape(cos(phi_struct), 1, 1, numOfvoxels);
     
+    zeros_struct = zeros(1, 1, numOfvoxels);
+    ones_struct = ones(1, numOfsegments, numOfvoxels);
+    
     Rot_str = [ ...
         cos_theta_struct.*cos_phi_struct, cos_theta_struct.*sin_phi_struct, -sin_theta_struct; ...
         -sin_phi_struct                 , cos_phi_struct                  , zeros_struct     ; ...
@@ -76,17 +81,19 @@ function [ error_norm, ad_grad_coeffs, ad_grad_theta, ad_grad_phi, aux_diff_pois
 
     cos_theta_sh_cut = q_pp(3, :, :); 
 
-    if all(mod(l,2) == 0) && all(m == 0) % Make sure that all l is even, and that all m = 0
-        block_cos_theta_powers = double([ones_struct; cumprod(repmat(cos_theta_sh_cut.^2, numOfCoeffs-1, 1), 1)]); %RSD: Check functionality of cumprod, repmat etc.  % RSD: ONES AND CUMULATIVE PRODUCT OF CREATED NDARRAY.
-    elseif ~all(mod(l,2) == 0)
-        error('Not all orders l of SH are even, odd orders are currently not supported')
-    elseif ~all(m == 0)
-        error('Not all orders m of SH are zero, only m = 0 are currently supported')
-    end
+    %if all(mod(l,2) == 0) && all(m == 0) % Make sure that all l is even, and that all m = 0
+    %    block_cos_theta_powers = double([ones_struct; cumprod(repmat(cos_theta_sh_cut.^2, numOfCoeffs-1, 1), 1)]); %RSD: Check functionality of cumprod, repmat etc.  % RSD: ONES AND CUMULATIVE PRODUCT OF CREATED NDARRAY.
+    %elseif ~all(mod(l,2) == 0)
+    %    error('Not all orders l of SH are even, odd orders are currently not supported')
+    %elseif ~all(m == 0)
+    %    error('Not all orders m of SH are zero, only m = 0 are currently supported')
+    %end
+    %RSD: Ignore safety-barrier. 
+    block_cos_theta_powers =  dlarray_repmat_cumprod_SH(ones_struct, cos_theta_sh_cut, numOfCoeffs); %double([ones_struct; cumprod(repmat(cos_theta_sh_cut.^2, numOfCoeffs-1, 1), 1)]); %RSD: Check cumprod and repmat
 
-    Ylm = pagemtimes(Ylm_coef, block_cos_theta_powers); %bsxpagemult(double(Ylm_coef), block_cos_theta_powers); %RSD: change to pagemtimes.
+    Ylm = pagemtimes(Ylm_coef, block_cos_theta_powers); %bsxpagemult(double(Ylm_coef), block_cos_theta_powers); %RSD: change to pagemtimes. 
 
-    sumlm_alm_Ylm = pagemtimes(a_temp, Ylm); %bsxpagemult(double(a_temp), Ylm); %RSD: Change to pagemtimes
+    sumlm_alm_Ylm = pagemtimes(a_temp, Ylm); %bsxpagemult(double(a_temp), Ylm); %RSD: Change to pagemtimes %RSD: Issue when all coefficients.
 
     data_synt_vol = permute(abs(sumlm_alm_Ylm.^2), [3, 2, 1]); % modeled intensities
     data_synt_vol = reshape(data_synt_vol, ny, nx, nz, numOfsegments);
@@ -113,13 +120,34 @@ function [ error_norm, ad_grad_coeffs, ad_grad_theta, ad_grad_phi, aux_diff_pois
             ad_grad_coeffs = dlarray(zeros(size(a_temp)));
         end
     else
-        try
-            ad_grad_theta = dlgradient(error_norm, theta_struct);
-            ad_grad_phi = dlgradient(error_norm, phi_struct);
-        catch
-            ad_grad_theta = dlarray(zeros(size(theta_struct)));
-            ad_grad_phi = dlarray(zeros(size(phi_struct)));
-        end
+        ad_grad_coeffs = zeros(size(a_temp));
+    end
+
+    try
+        ad_grad_theta = dlgradient(error_norm, theta_struct);
+        ad_grad_phi = dlgradient(error_norm, phi_struct);
+    catch
+        ad_grad_theta = dlarray(zeros(size(theta_struct)));
+        ad_grad_phi = dlarray(zeros(size(phi_struct)));
     end
 
 end
+
+
+function [cumprod] = dlarray_repmat_cumprod_SH(ones_struct, cos_theta_sh_cut, numOfCoeffs)
+
+    copy_matrix = dlarray( ones(numOfCoeffs-1, size(ones_struct,2), size(ones_struct, 3)) );
+
+    for k = 1:(numOfCoeffs-1) %RSD: Think this is correct
+        
+        copy_matrix(k,:,:) = copy_matrix(k,:, :) .* cos_theta_sh_cut.^(2*k);
+
+    end
+
+    cumprod = double ( [ones_struct; copy_matrix]);
+
+    %double([ones_struct; cumprod(repmat(cos_theta_sh_cut.^2, numOfCoeffs-1, 1), 1)]);
+
+end % RSD: Now test that the function works. Both that it runs and that it is identical to symbolic case. 
+    % RSD: Looks identical manually, but test says difference! Keep this in mind, but continue. 
+    % RSD: Dlarrays are introduced. Continue debugging. 
