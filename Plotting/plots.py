@@ -7,6 +7,8 @@ from matplotlib.cm import get_cmap
 from cycler import cycler
 import h5py
 import scipy.io
+from celluloid import Camera
+import torch
 
 
 #print(plt.style.available)
@@ -100,6 +102,63 @@ def plot_comparison_grads(mat_paths: list, keys: list, labels: list, bins = 200,
     plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
     plt.show()
     return
+
+def GD_cost_func(x,y):
+    return torch.pi/2*(torch.sin(x**2+y**2)+torch.pi)/(x**2+y**2 +1)+ 0.69*(x**2 + y**2)  -torch.pi/2* torch.exp(-( (x-1)**2 + (y-1)**2)/(4))
+
+
+def plot_3D_GD(func, x, y, first = True, fig=None, ax = None):
+
+    if first:
+        fig = plt.figure()
+        ax = plt.axes(projection='3d')
+
+    else:
+        fig = fig
+        ax = ax
+    
+    X,Y = np.meshgrid(x,y)
+    X, Y = torch.tensor(X), torch.tensor(Y)
+    Z = func(X, Y)
+
+    ax.plot_surface(X, Y, Z, alpha = 0.8, cmap="Reds" ) #[u"#F05039"] )
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_zticks([])
+    ax.view_init(elev = 23, azim =0)    
+
+    return fig, ax
+
+def animate_3D_GD(func, x,y, init_pos, frames = 100, step=0.1):
+
+    fig, ax = plot_3D_GD(func, x, y)
+    camera = Camera(fig)
+    traj = np.zeros((frames, 2))
+    traj[0] = init_pos
+    ax.plot(traj[0,0],traj[0,-1],func(torch.tensor(traj[0,0]),torch.tensor(traj[0,-1])), "o", c=u"#1F449C", markersize = 14)
+
+    camera.snap()
+
+    for epoch in range(frames-1):
+
+        x1,x2 = traj[epoch]
+        input = torch.tensor( np.array([x1,x2]) , requires_grad=True)
+        print(input)
+        err = func(input[0], input[-1] )
+        err.backward()
+        grad = input.grad
+
+        traj[epoch +1] = traj[epoch] - step*grad.numpy()
+        fig, ax = plot_3D_GD(func, x, y, first=False, fig=fig, ax=ax)
+        ax.plot(traj[epoch +1,0],traj[epoch +1,-1],func(torch.tensor(traj[epoch +1,0]),torch.tensor(traj[epoch +1,-1])), "o", c=u"#1F449C", markersize = 14)
+        ax.plot(traj[:epoch+2,0],traj[:epoch+2,-1],0, c=u"#1F449C")
+
+        camera.snap()
+    
+    animation = camera.animate(interval = 50, repeat= True)
+    animation.save(f"GD_test.mp4")
+    return
+
 
 
 
