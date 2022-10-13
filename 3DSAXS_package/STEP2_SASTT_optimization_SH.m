@@ -194,7 +194,7 @@ p.save.image_filename = sprintf('%s/optimization_sym_int_%s', p.figures, p.add_n
 
 %optimize
 fprintf('****** Step 2.2 optimization of coefficients over the symmetric intensity: only a0 ******\n')
-[p, s] = optimization.optimize_SH(projection, p, s, p.mode); % RSD : true for AD, false for symbolic
+[p, s] = optimization.optimize_SH(projection, p, s); % RSD : true for AD, false for symbolic
 fprintf('Saving results in %s\n',p.save.output_filename)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -298,7 +298,7 @@ for ii = 1:numel(l)
 end
 
 %optimize
-[p, s] = optimization.optimize_SH(projection, p, s, p.mode); %RSD: remember AD (p.mode)
+[p, s] = optimization.optimize_SH(projection, p, s); %RSD: remember AD (p.mode)
 
 %% Step 2.5: optimization of SH coefficients: non symmetric
 % optimize the other coefficients a2, a4 and a6, keeping a0 constant

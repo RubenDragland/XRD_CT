@@ -177,10 +177,10 @@ p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 p.itmax = 25; %20                % maximum number of iterations: about 20
 p.skip_projections = 1;         % = 1, for not skipping projections
 p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
-p.method = "bilinear";          % RSD: Choose method of interpolation.
+p.method = "nearest";          % RSD: Choose method of interpolation.
 
 if p.mode
-    p.method = "nearest"        % RSD: Another safety net for method of interpolation.
+    p.method = "nearest";        % RSD: Another safety net for method of interpolation.
 end
 
 p.avoid_wrapping=0;            % avoid wrapping over 2Pi
@@ -191,7 +191,7 @@ p.save.image_filename = sprintf('%s/optimization_sym_int_%s', p.figures, p.add_n
 
 %optimize
 fprintf('****** Step 2.2 optimization of coefficients over the symmetric intensity: only a0 ******\n')
-[p, s] = optimization.optimize_SH(projection, p, s, p.mode); % RSD : true for AD, false for symbolic
+[p, s] = optimization.optimize_SH(projection, p, s); % RSD : true for AD, false for symbolic
 fprintf('Saving results in %s\n',p.save.output_filename)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -259,11 +259,11 @@ p.itmax = 30; %50; %30;           % maximum number of iterations: about 50
 p.skip_projections = 1; % = 1, for not skipping projections
 
 %RSD: Watch out for these settings. 
-p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
+p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
 p.method = "nearest";          % RSD: Choose method of interpolation.
 
 if p.mode
-    p.method = "nearest"        % RSD: Another safety net for method of interpolation.
+    p.method = "nearest";        % RSD: Another safety net for method of interpolation.
 end
 
 p.avoid_wrapping = 1;   % Avoid wrapping of the angle (to keep angle between 0 and 2pi) (true or false)
@@ -295,7 +295,155 @@ for ii = 1:numel(l)
 end
 
 %optimize
-[p, s] = optimization.optimize_SH(projection, p, s, p.mode); %RSD: remember AD (p.mode)
+[p, s] = optimization.optimize_SH(projection, p, s); %RSD: remember AD (p.mode)
 
 
 %RSD: Also, why does the error increase from a0? Perhaps because a2 and a4 are introduced by a guess. 
+
+%% Step 2.5: optimization of SH coefficients: non symmetric
+% optimize the other coefficients a2, a4 and a6, keeping a0 constant
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% EDIT:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+p.opt_coeff = [0, 1, 1, 1];
+
+p.find_orientation = 0;     % Optimize over the main orientation of the structure (true or false)
+p.regularization = 1;       % apply Sieves regularization on the coefficient (true or false)
+p.regularization_angle = 0; % Regularization of the angles. (true or false)
+
+%parameters for the sieves regularization (blurring the gradient)
+p.slice = 0;
+kernel3D = window3(5,5,5,@hamming);    % strength of Sieves regularization
+p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
+
+p.itmax = 20; %20;            % maximum number of iterations: about 20
+p.skip_projections = 1;  % = 1, for not skipping projections
+
+%RSD: Watch out for these settings. 
+p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
+p.method = "nearest";          % RSD: Choose method of interpolation.
+
+if p.mode
+    p.method = "nearest";        % RSD: Another safety net for method of interpolation.
+end
+
+p.avoid_wrapping = 0;    % avoid wrapping over 2Pi of the angle
+
+coef_a1const_filename = sprintf('%s/result_%s_q%d-%d_coef_a1const_%s.mat',p.optimization_output_path, ...
+    p.sample_name, projection(1).par.r_sum{1}(1),  projection(1).par.r_sum{1}(end), p.add_name);
+
+p.save.output_filename = coef_a1const_filename;
+p.save.image_filename = sprintf('%s/optimization_coef_%s', p.figures, p.add_name);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% do optimization
+close all
+
+fprintf('Step 2.5: optimization of SH coefficients: non symmetric\n')
+
+fprintf('Loading symmetric intensity results from %s\n',sym_opt_filename)
+sym_opt = importdata(sym_opt_filename);
+
+% parameters for optimization of coefficients with constant a1 fixed from initial optimization
+% loas parameters from the angle
+fprintf('Loading parameters from %s\n',angle_opt_filename)
+angle_opt = importdata(angle_opt_filename);
+
+p.phi_det = angle_opt.p.phi_det;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Vector with spherical harmonic parameters. Setting an initial guess for
+% the coefficients.
+l = [0 2 4 6];  % Polar order
+m = [0 0 0 0];  % Azimuthal order
+a = [0.001 -0.0001 0.001 -0.0001];   % Coefficients
+
+for ii = 1:numel(l)
+    if p.opt_coeff(ii)
+        s.a(ii).data = ones(p.ny,p.nx,p.nz)*a(ii);
+    else      % This is only needed in case of loading from the file. I am not sure I like this idea that we always start each step by loading from file by default.
+        s.a(ii).data = sym_opt.s.a(1).data;
+    end
+    s.a(ii).l = l(ii);
+    s.a(ii).m = m(ii);
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%optimize
+[p, s] = optimization.optimize_SH(projection, p, s);
+
+%% Step 2.6: find optimal regularization parameters for final step
+%RSD: Not investigated at all yet. 
+
+%% Step 2.7: final optimization: combine all
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% EDIT:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% determine an approximation of the regularization coefficient
+load(coef_a1const_filename)
+
+t = sum(((s.a(1).data.*optimization.spherical_harm(0,0,0,0)).^2),4); %plot the first coefficent
+tt = (sum(t, 3).*projection(1).window_mask); %axis tight equal xy
+mu_guess = mean(mean(tt));
+
+% optimize all coefficients (a0, a2, a4 and a6) and angles (theta and phi)
+% whihout any constriction
+p.opt_coeff = [1, 1, 1, 1];
+
+p.find_orientation = 1;      % Optimize over the main orientation of the structure
+
+%RSD: Ignore regularization for now.
+p.regularization = 0;%1;        % Sieves regularization on coeff
+p.regularization_angle = 0;% 1; %regularization of angle
+p.regularization_angle_coeff = mu_guess;  %find the appropriate mu with L-curve from step 2.6 % RSD: Is this correct?
+
+%parameters for the sieves regularization (blurring the gradient)
+kernel3D=window3(5,5,5,@hamming);
+p.kernel=kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
+
+p.itmax = 50; %50;                          % maximum number of iterations: about 50-100
+p.skip_projections = 1;                % = 1, for not skipping projections
+
+%RSD: Watch out for these settings. 
+p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
+p.method = "nearest";          % RSD: Choose method of interpolation.
+
+if p.mode
+    p.method = "nearest";        % RSD: Another safety net for method of interpolation.
+end
+
+p.avoid_wrapping = 1;     % avoid wrapping over 2Pi of the angle
+
+all_again_filename = sprintf('%s/result_%s_q%d-%d_all_again_%s.mat', p.results, ...
+    p.sample_name, projection(1).par.r_sum{1}(1),  projection(1).par.r_sum{1}(end), p.add_name);
+
+p.save.output_filename = all_again_filename;
+p.save.image_filename = sprintf('%s/optimization_all_q%d-%d_%s', p.figures, projection(1).par.r_sum{1}(1),  projection(1).par.r_sum{1}(end), p.add_name);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+close all
+
+fprintf('Step 2.7: final optimization: combine all\n')
+
+% parameters for optimization of angles with the 4 coefficients
+l = [0 2 4 6];  % Polar order
+m = [0 0 0 0];  % Azimuthal order
+
+for ii = 1:numel(l)
+    s.a(ii).l = l(ii);
+    s.a(ii).m = m(ii);
+end
+
+% needed when IRTT results are given as initial guess
+if ~isfield(p, 'phi_det')
+    % %%% 2D plot characteristics (the data) %%%
+    % Half of the Angular segments in integration
+    numsegments = length(projection(1).integ.phi_det)/2;
+    p.numsegments = numsegments;
+    % read the phi_det from integ
+    % consider only the first half because of the symmetry assumption for the
+    % segments
+    p.phi_det = deg2rad(projection(1).integ.phi_det(1:numsegments)); %in radians
+    %%%%%%%%%%%%%%%%%%%%
+end
+
+%optimize
+[p, s] = optimization.optimize_SH(projection, p, s);
+

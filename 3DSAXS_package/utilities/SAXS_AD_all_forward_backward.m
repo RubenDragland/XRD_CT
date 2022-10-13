@@ -27,7 +27,7 @@ function [E, grad_a, grad_theta_struct, grad_phi_struct ] = SAXS_AD_all_forward_
             grad_a = grad_a + reshape(AD_grad_coeff, ny, nx, nz, numOfCoeffs);
         else
             [error_norm, AD_grad_coeffs, AD_grad_theta, AD_grad_phi, aux_diff_poisson, proj_out_all] = dlfeval(@SAXS_AD_all_cost_function, theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels);
-        end
+        end %RSD: Use thilde ~ for unused variables. The aux_diff may be removed entirely. 
 
         error_norm = extractdata(error_norm);
         E = E + error_norm;
@@ -149,5 +149,5 @@ function [cumprod] = dlarray_repmat_cumprod_SH(ones_struct, cos_theta_sh_cut, nu
     %double([ones_struct; cumprod(repmat(cos_theta_sh_cut.^2, numOfCoeffs-1, 1), 1)]);
 
 end % RSD: Now test that the function works. Both that it runs and that it is identical to symbolic case. 
-    % RSD: Looks identical manually, but test says difference! Keep this in mind, but continue. 
+    % RSD: Looks identical manually, but test says difference! The difference is order 1e-15 
     % RSD: Dlarrays are introduced. Continue debugging. 

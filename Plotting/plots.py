@@ -59,13 +59,22 @@ def plot_visualisation_grads(mat_paths: list, keys: list, titles: list, bins=200
 
     """
 
-    fig, axs = plt.subplots(3,1, sharex=True, sharey=True, figsize= (4,12))
+    if len(mat_paths) == 4: #Some piss about figure format
+        rows = 2
+        cols = 2
+    else:
+        rows = len(mat_paths)
+        cols = 1
+
+
+    fig, axs = plt.subplots(rows,cols, sharex=True, sharey=True, figsize= (4*cols,4*rows))
     cycler = plt.rcParams["axes.prop_cycle"].by_key()["color"] # Use this to retrieve cycle
-    for i, (ax, path) in enumerate( zip( axs, mat_paths ) ):
+    for i, (ax, path) in enumerate( zip( np.reshape( axs, (rows*cols, ) )  , mat_paths ) ): #np.reshape(axs, (len(axs[0])*len(axs[1]), )
+
         mat_dict = scipy.io.loadmat(path)
         data = np.reshape(mat_dict[ keys[i] ], -1 ) #* 1e5 # Scaled, though a bit hard-coded. 
 
-        ax.hist(data, bins=bins, range = range, density = False, alpha = 0.69 )   
+        ax.hist(np.abs(data), bins=bins, range = range, density = False, alpha = 0.69 )   
         ax.ticklabel_format( style = "sci", scilimits = (0, 0))     
         ax.set_ylabel("Count")
         ax.set_title(titles[i])

@@ -66,7 +66,7 @@
 %    proper use and the correctness of the results.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [p, s] = optimize_SH(projection, p, s, AD) %RSD: Added Boolean for automatic differentiation
+function [p, s] = optimize_SH(projection, p, s) %RSD: Added Boolean for automatic differentiation
 % Number of coefficients
 order = numel([s.a.l]);
 
@@ -184,6 +184,7 @@ itmax = p.itmax; %maximum number of iteration (empty for default = 50)
 ftol = [];  %relative function tolerance (empty for default = 1e-3)
 xtol = [];  %absolute solution tolerance (empty for default = 1e-3)
 
+AD = p.mode;
 if AD
     opt_out = optimization.cgmin1('optimization.SAXS_tomo_3D_err_metric_AD_all', opt_inputs, itmax, ftol, xtol, p, s, opt_projection); %RSD: Call AD error metric instead.
 else
