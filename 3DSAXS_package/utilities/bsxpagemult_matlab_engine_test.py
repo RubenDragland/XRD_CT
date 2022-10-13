@@ -16,6 +16,7 @@ a_temp = np.ones(matrix_shape ) #np.ones(matrix_shape) #rng.normal(size = matrix
 Ylm = np.ones(matrix_shape) #+ 1j*np.ones(matrix_shape) #rng.normal(size = matrix_shape) + 1j * rng.normal(size = matrix_shape)
 
 
+sys.exit()
 times = 100000
 
 # Test speed in python

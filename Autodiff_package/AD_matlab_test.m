@@ -84,10 +84,6 @@ end
 
 function[E, grad] =  matlab_autograd(func, diff_var, mask_omega, Y_lms, measured_I, transparency) %varargin)
 x_diff = dlarray(diff_var);
-%mask_omega = dlarray(mask_omega);
-%Y_lms = dlarray(Y_lms);
-%measured_I = dlarray(measured_I);
-%transparency = dlarray(transparency);
 [E,grad] = dlfeval(func, mask_omega, Y_lms, measured_I, transparency, x_diff); %varargin(:), x_diff); %Might need @ in front of function.
 end
 
@@ -99,7 +95,9 @@ end
 % Test function
 function [y,dydx] = rosenbrock(x)
 
+%y = 2*x(1) +x(2);
 y = 100*(x(2) - x(1).^2).^2 + (1 - x(1)).^2;
+%y = y^2;
 dydx = dlgradient(y,x);
 
 end
