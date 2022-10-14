@@ -179,7 +179,7 @@ p.skip_projections = 1;         % = 1, for not skipping projections
 p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
 p.method = "bilinear";          % RSD: Choose method of interpolation.
 p.filter_2D = 3;                % RSD: The best filter.
-p.GPU = 1;
+p.GPU = 0;
 
 %if p.mode
 %    p.method = "nearest";        % RSD: Another safety net for method of interpolation.
@@ -261,12 +261,12 @@ p.itmax = 30; %50; %30;           % maximum number of iterations: about 50
 p.skip_projections = 1; % = 1, for not skipping projections
 
 %RSD: Watch out for these settings. 
-p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
-p.method = "nearest";          % RSD: Choose method of interpolation.
+p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
+p.method = "bilinear";          % RSD: Choose method of interpolation.
 
-if p.mode
-    p.method = "nearest";        % RSD: Another safety net for method of interpolation.
-end
+%if p.mode
+%    p.method = "nearest";        % RSD: Another safety net for method of interpolation.
+%end
 
 p.avoid_wrapping = 1;   % Avoid wrapping of the angle (to keep angle between 0 and 2pi) (true or false)
 

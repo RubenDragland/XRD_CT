@@ -1,4 +1,4 @@
-function [ proj_out_all, xout, yout ] = arb_projection( tomo_obj_all, X, Y, Z, R, p, xout, yout )
+function [ proj_out_all, xout, yout ] = arb_projection( tomo_obj_all, X, Y, Z, R, p, xout, yout, find_grad )
 % [ proj_out_all, xout, yout ] = arb_projection( tomo_obj_all, X, Y, Z, R, p, xout, yout )
 %
 % Computes a projection along Z after an arbitrary rotation of the object
@@ -203,7 +203,7 @@ end
 min_xout = min(xout);
 min_yout = min(yout);
 
-if strcmpi(method,'bilinear') && p.mode
+if strcmpi(method,'bilinear') && p.mode && find_grad
 
     %%% Bilinear interpolation %%%
     Ax = floor(Xp-min_xout+1); % Index of output image that corresponds to the voxel
@@ -248,7 +248,7 @@ if strcmpi(method,'bilinear') && p.mode
         
     end
 
-elseif strcmpi(method,'nearest') && p.mode
+elseif strcmpi(method,'nearest') && p.mode && find_grad
     %%% Nearest neighbor %%%
     % Assigns value of voxel to the nearest pixel
     Ax = round(Xp-min_xout+1); % Index of output image that corresponds to the voxel
@@ -339,7 +339,7 @@ end
 if filter_2D > 0
     filt_2D = filt_2D.'*filt_2D;
     filt_2D = filt_2D/sum(filt_2D(:));
-    if p.mode
+    if p.mode && find_grad
         bias = zeros( 1 ); 
         proj_out_all = dlconv(proj_out_all, filt_2D, bias, DataFormat = "SSU", Padding = "same"); %RSD: Believe this will work. 
 

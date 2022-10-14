@@ -279,10 +279,6 @@ else
         % coefficients and also excludes m ~= 0
         if all(mod(l,2) == 0) && all(m == 0) % Make sure that all l is even, and that all m = 0
             block_cos_theta_powers = double([ones_struct; cumprod(repmat(cos_theta_sh_cut.^2, numOfCoeffs-1, 1), 1)]);    % RSD: ONES AND CUMULATIVE PRODUCT OF CREATED NDARRAY.
-
-            %RSD: Memory
-            
-
             % As a reminder, when generalizing to any scrambling of coefficient
             % order (e.g. s.a([3 2 1 4]) I also mistakenly changed the order of
             % the powers of cos(theta), this was a mistake because in
