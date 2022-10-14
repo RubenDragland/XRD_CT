@@ -7,3 +7,7 @@ __pycache__
 3DSAXS_package/STEP2_SASTT_optimization_SH.asv
 .html
 .ipynb_checkpoints
+profile_results_automatic
+profile_results_symbolic
+Avtaler
+.pdf
