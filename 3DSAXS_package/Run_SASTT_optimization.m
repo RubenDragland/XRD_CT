@@ -178,7 +178,8 @@ p.itmax = 25; %20                % maximum number of iterations: about 20
 p.skip_projections = 1;         % = 1, for not skipping projections
 p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
 p.method = "bilinear";          % RSD: Choose method of interpolation.
-p.filter_2D = 3;                % RSD: The best filter. 
+p.filter_2D = 3;                % RSD: The best filter.
+p.GPU = 1;
 
 %if p.mode
 %    p.method = "nearest";        % RSD: Another safety net for method of interpolation.

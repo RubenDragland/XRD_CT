@@ -213,6 +213,9 @@ if strcmpi(method,'bilinear') && p.mode
     
     size_proj_out_all = uint64([numel(yout), numel(xout), size(tomo_obj_all, 4)]); % RSD: SIZES OF ARRAYS?
     proj_out_all = dlarray( zeros(size_proj_out_all) );
+    if p.GPU
+        proj_out_all = gpuArray(proj_out_all);
+    end
     nRows = size_proj_out_all(1);
     page_in = numel(Ax); %size(Ax,1) * size(Ax,2) ; %RSD: Apparently Ax rows times Ax columns, where columns are the remaining dimensions
     page_out = nRows * numel(xout); %RSD: nRows times nCols. 

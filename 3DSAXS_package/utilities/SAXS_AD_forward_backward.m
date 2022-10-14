@@ -5,6 +5,9 @@
 function [error_norm, ad_grad ] = SAXS_AD_forward_backward(func, a_temp, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels ) % RSD: EXPAND TO OTHER UTILITIES LATER.
     if find_grad
         a_temp = dlarray(a_temp); % RSD: Also fix function call. %RSD: gpuArray( dlarray(a_temp ) ); Need to get it working on server. 
+        if p.GPU
+            a_temp = gpuArray(a_temp);
+        end
         [error_norm, ad_grad] = dlfeval(@SAXS_AD_cost_function, a_temp); %, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels);
     else
         %p_method_temp = p.method; % RSD: Save chosen method. Change to bilinear for speed in Mex-function. Change back.
@@ -14,7 +17,7 @@ function [error_norm, ad_grad ] = SAXS_AD_forward_backward(func, a_temp, Ylm, ny
     end
     % RSD: Save memory by using nested functions. Fewer input params. 
 
-    function [error_norm, ad_grad ] = SAXS_AD_cost_function(a_temp); % Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels)
+    function [error_norm, ad_grad ] = SAXS_AD_cost_function(a_temp) % Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels)
 
         % RSD: Issue, convert a_temp to double or not? Assume double convert it from dlarray. That is not allowed
         %sumlm_alm_Ylm = bsxpagemult(a_temp, Ylm);

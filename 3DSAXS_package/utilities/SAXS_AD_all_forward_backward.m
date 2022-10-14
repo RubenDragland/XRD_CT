@@ -15,10 +15,16 @@ function [E, grad_a, grad_theta_struct, grad_phi_struct ] = SAXS_AD_all_forward_
             a_temp_it = dlarray(a_temp);
         else
             a_temp_it = double(a_temp); %RSD: Temp variable must be set before it is used. 
-        end
+        end            
 
         theta_struct_it = dlarray(theta_struct); %RSD: Need new names due to parallel for-loop.
         phi_struct_it = dlarray(phi_struct);
+        
+        if p.GPU
+            a_temp_it = gpuArray(a_temp_it);
+            theta_struct_it = gpuArray(theta_struct_it);
+            phi_struct_it = gpuArray(phi_struct_it);
+        end
 
         if find_coefficients %RSD: Consider to remove this if/else. 
             [error_norm, AD_grad_coeffs, AD_grad_theta, AD_grad_phi] = dlfeval(@SAXS_AD_all_cost_function, theta_struct_it, phi_struct_it, a_temp_it); %, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels );
