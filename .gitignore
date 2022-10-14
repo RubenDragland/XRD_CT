@@ -5,3 +5,5 @@ __pycache__
 .raw
 .asv
 3DSAXS_package/STEP2_SASTT_optimization_SH.asv
+.html
+.ipynb_checkpoints
