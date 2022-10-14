@@ -10,6 +10,7 @@ __pycache__
 profile_results_automatic
 profile_results_symbolic
 profile_results_AD_nonpar
+profile_results_AD_par_noGPU
 Avtaler
 Archive
 .pdf
