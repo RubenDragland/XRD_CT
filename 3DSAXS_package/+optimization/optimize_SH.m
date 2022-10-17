@@ -130,7 +130,7 @@ end
 if ~isfield(p,'method')
     %p.method = 'bilinear';
     %RSD: AD MEX crash use nearest if not specified.
-    p.method = 'nearest';
+    p.method = 'bilinear';
     fprintf('p.method is empty, setting to default value p.method = %s \n', p.method)
 end
 if ~isfield(p,'filter_2D')

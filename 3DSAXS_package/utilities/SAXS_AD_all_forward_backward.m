@@ -18,7 +18,7 @@ function [E, grad_a, grad_theta_struct, grad_phi_struct ] = SAXS_AD_all_forward_
         end            
 
         theta_struct_it = dlarray(theta_struct); %RSD: Need new names due to parallel for-loop.
-        phi_struct_it = dlarray(phi_struct);
+        phi_struct_it = dlarray(phi_struct); %RSD: A bit unfortunate that this has to be done multiple times. What about doing it once and calculate gradient wrt E instead of error_norm...
         
         if p.GPU
             a_temp_it = gpuArray(a_temp_it);
@@ -82,7 +82,7 @@ function [ error_norm, ad_grad_coeffs, ad_grad_theta, ad_grad_phi] = SAXS_AD_all
 
     Ylm = pagemtimes(Ylm_coef, block_cos_theta_powers); %bsxpagemult(double(Ylm_coef), block_cos_theta_powers); %RSD: change to pagemtimes. 
 
-    sumlm_alm_Ylm = pagemtimes(a_temp, Ylm); %bsxpagemult(double(a_temp), Ylm); %RSD: Change to pagemtimes %RSD: Issue when all coefficients.
+    sumlm_alm_Ylm = pagemtimes(a_temp, Ylm); %bsxpagemult(double(a_temp), Ylm); %RSD: Change to pagemtimes %RSD: Issue when all coefficients?
 
     data_synt_vol = permute(abs(sumlm_alm_Ylm.^2), [3, 2, 1]); % modeled intensities
     data_synt_vol = reshape(data_synt_vol, ny, nx, nz, numOfsegments);
@@ -113,10 +113,10 @@ function [ error_norm, ad_grad_coeffs, ad_grad_theta, ad_grad_phi] = SAXS_AD_all
         try
             ad_grad_coeffs = dlgradient(error_norm, a_temp);
         catch
-            ad_grad_coeffs = dlarray(zeros(size(a_temp)));
+            ad_grad_coeffs = dlarray(zeros(size(a_temp))); %RSD: Correct shape? Probably 1D array which is later reshaped. 
         end
     else
-        ad_grad_coeffs = zeros(size(a_temp));
+        ad_grad_coeffs = zeros(size(a_temp)); %RSD: is it correct to overwrite the gradient? Even though it is not used later?
     end
 
     try

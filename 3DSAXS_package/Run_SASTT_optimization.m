@@ -174,9 +174,9 @@ p.slice = 0; %in case the optimization is done on a slice (so it is using a 2D k
 kernel3D = window3(5,5,5,@hamming);
 p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 
-p.itmax = 25; %20                % maximum number of iterations: about 20
+p.itmax = 10; %20                % maximum number of iterations: about 20
 p.skip_projections = 1;         % = 1, for not skipping projections
-p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
+p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
 p.method = "bilinear";          % RSD: Choose method of interpolation.
 p.filter_2D = 3;                % RSD: The best filter.
 p.GPU = 0;
@@ -257,7 +257,7 @@ p.regularization = 0;             % Sieves regularization on the coefficients. (
 p.regularization_angle = 0;       % Regularization of the angles. (true or false)
 p.regularization_angle_coeff = 0; % mu for regularization of angle, needs to be found with L-curve
 
-p.itmax = 30; %50; %30;           % maximum number of iterations: about 50
+p.itmax = 20; %50; %30;           % maximum number of iterations: about 50
 p.skip_projections = 1; % = 1, for not skipping projections
 
 %RSD: Watch out for these settings. 
@@ -310,7 +310,7 @@ end
 p.opt_coeff = [0, 1, 1, 1];
 
 p.find_orientation = 0;     % Optimize over the main orientation of the structure (true or false)
-p.regularization = 1;       % apply Sieves regularization on the coefficient (true or false)
+p.regularization = 0; %1;       % apply Sieves regularization on the coefficient (true or false)
 p.regularization_angle = 0; % Regularization of the angles. (true or false)
 
 %parameters for the sieves regularization (blurring the gradient)
@@ -322,12 +322,8 @@ p.itmax = 20; %20;            % maximum number of iterations: about 20
 p.skip_projections = 1;  % = 1, for not skipping projections
 
 %RSD: Watch out for these settings. 
-p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
-p.method = "nearest";          % RSD: Choose method of interpolation.
-
-if p.mode
-    p.method = "nearest";        % RSD: Another safety net for method of interpolation.
-end
+p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
+p.method = "bilinear";          % RSD: Choose method of interpolation.
 
 p.avoid_wrapping = 0;    % avoid wrapping over 2Pi of the angle
 
@@ -406,11 +402,7 @@ p.skip_projections = 1;                % = 1, for not skipping projections
 
 %RSD: Watch out for these settings. 
 p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
-p.method = "nearest";          % RSD: Choose method of interpolation.
-
-if p.mode
-    p.method = "nearest";        % RSD: Another safety net for method of interpolation.
-end
+p.method = "bilinear";          % RSD: Choose method of interpolation.
 
 p.avoid_wrapping = 1;     % avoid wrapping over 2Pi of the angle
 
