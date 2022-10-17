@@ -176,7 +176,7 @@ p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 
 p.itmax = 10; %20                % maximum number of iterations: about 20
 p.skip_projections = 1;         % = 1, for not skipping projections
-p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
+p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
 p.method = "bilinear";          % RSD: Choose method of interpolation.
 p.filter_2D = 3;                % RSD: The best filter.
 p.GPU = 0;
@@ -193,7 +193,9 @@ p.save.image_filename = sprintf('%s/optimization_sym_int_%s', p.figures, p.add_n
 
 %optimize
 fprintf('****** Step 2.2 optimization of coefficients over the symmetric intensity: only a0 ******\n')
+tic
 [p, s] = optimization.optimize_SH(projection, p, s); % RSD : true for AD, false for symbolic
+toc
 fprintf('Saving results in %s\n',p.save.output_filename)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -297,7 +299,9 @@ for ii = 1:numel(l)
 end
 
 %optimize
+tic
 [p, s] = optimization.optimize_SH(projection, p, s); %RSD: remember AD (p.mode)
+toc
 
 
 %RSD: Also, why does the error increase from a0? Perhaps because a2 and a4 are introduced by a guess. 
@@ -366,8 +370,9 @@ for ii = 1:numel(l)
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %optimize
+tic
 [p, s] = optimization.optimize_SH(projection, p, s);
-
+toc
 %% Step 2.6: find optimal regularization parameters for final step
 %RSD: Not investigated at all yet. 
 
@@ -439,5 +444,7 @@ if ~isfield(p, 'phi_det')
 end
 
 %optimize
+tic
 [p, s] = optimization.optimize_SH(projection, p, s);
+toc
 

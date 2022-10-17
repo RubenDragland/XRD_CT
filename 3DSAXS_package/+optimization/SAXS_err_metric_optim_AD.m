@@ -152,7 +152,7 @@ grad_phi_struct   = zeros(ny, nx, nz);
 
 %%% RSD: General features moved up in order to apply for all cases.
 
-zeros_struct = zeros(1, 1, numOfvoxels);
+%zeros_struct = zeros(1, 1, numOfvoxels);
 
 % Determine Ylm and Ylm+1 coefficients
 Ylm_coef        = optimization.get_Ylm_coeff(l,m);
@@ -171,10 +171,7 @@ Ylm_coef        = optimization.get_Ylm_coeff(l,m);
 %     sqrt(273/(2*pi))*[0, -5/16,  15/8, -33/16]];
 % YlmPLUS1_coef = YlmPLUS1_coef(1:order, 1:order);
 
-ones_struct = ones(1, numOfsegments, numOfvoxels);
-
-% optimization
-E = 0;
+%ones_struct = ones(1, numOfsegments, numOfvoxels);
 
 % q (unit vector), 3D coordinates of the measurements in reciprocal space and in beamline coordinates. 
 % Size 3x8 [xyz x numOfsegments]. The third dimension is actually only needed to account for Ewald sphere curvature
@@ -191,7 +188,7 @@ z = (1:N(3)) - ceil(N(3)/2);
 % dimension N(1), then it appears in the second position of the meshgrid,
 % because meshgrid is (x,y,z) and size is (y,x,z)
 
-
+E = 0;
 %RSD: Divide into two parts in order to still be able to use bsxpagemult etc. 
 if find_grad && find_orientation
 
@@ -204,7 +201,13 @@ if find_grad && find_orientation
     theta_struct = dlarray(theta_struct); %RSD: Unformatted
     phi_struct = dlarray(phi_struct);     %RSD: Unformatted
 
-    [E, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = dlfeval(@SAXS_AD_optim_fb_orientation, theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels );
+    if p.GPU
+        a_temp = gpuArray(a_temp);
+        theta_struct = gpuArray(theta_struct);
+        phi_struct = gpuArray(phi_struct);
+    end
+
+    [E, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = dlfeval(@SAXS_AD_optim_fb_orientation, theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, projection, p, find_grad, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels );
 
     if find_coefficients
         grad_a = reshape( extractdata( AD_grad_coeff ), [ny, nx, nz, numOfCoeffs] );
@@ -215,18 +218,34 @@ if find_grad && find_orientation
 
     E = extractdata(E);
 
+    if p.GPU
+        a_temp = gather(a_temp);
+        theta_struct = gather(theta_struct);
+        phi_struct = gather(phi_struct);
+        E = gather(E); %RSD: Try this as well. 
+    end
+
 else
     %RSD: This code calculates the coefficient gradients or no gradients. Move most of the general code outside of the if-else.
     if find_grad && find_coefficients
         %RSD: Introduce dlarrays for a_temp
         a_temp = dlarray(a_temp);
 
-        [E, AD_grad_coeff] = dlfeval(@SAXS_AD_optim_fb_coefficients, a_temp, theta_struct, phi_struct, ny, nx, nz, numOfsegments, projection, p, find_grad, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels );
+        if p.GPU
+            a_temp = gpuArray(a_temp);
+        end
+
+        [E, AD_grad_coeff] = dlfeval(@SAXS_AD_optim_fb_coeffs, a_temp, theta_struct, phi_struct, ny, nx, nz, numOfsegments, projection, p, find_grad, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels );
 
         grad_a = reshape( extractdata( AD_grad_coeff ), [ny, nx, nz, numOfCoeffs] );
         E = extractdata(E);
+
+        if p.GPU
+            a_temp = gather(a_temp);
+            E = gather(E); %RSD: Try this as well. 
+        end
     else
-        [E, AD_grad_coeff] = SAXS_AD_optim_fb_coefficients( a_temp, theta_struct, phi_struct, ny, nx, nz, numOfsegments, projection, p, find_grad, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels );
+        [E, AD_grad_coeff] = SAXS_AD_optim_fb_coeffs( a_temp, theta_struct, phi_struct, ny, nx, nz, numOfsegments, projection, p, find_grad, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels );
     end
     
 end

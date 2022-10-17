@@ -242,8 +242,8 @@ else
     %clear(aux_vars{:})
 
     %calculate for all projections
-    parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
-    %for ii = 1:length(projection) % RSD: Debug for loop  
+    %parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
+    for ii = 1:length(projection) % RSD: Debug for loop  
         
         data = double(projection(ii).data);
         

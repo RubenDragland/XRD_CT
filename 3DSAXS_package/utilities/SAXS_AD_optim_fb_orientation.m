@@ -1,7 +1,7 @@
 
 % RSD: Forward backward pass when orientation or all parameters are to be optimised. 
 
-function [E, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = SAXS_AD_optim_fb_orientation(theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels)
+function [E, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = SAXS_AD_optim_fb_orientation(theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, projection, p, find_grad, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels)
 
     E = 0;
 
@@ -9,6 +9,9 @@ function [E, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = SAXS_AD_optim_fb_orien
     cos_theta_struct = reshape(cos(theta_struct), 1, 1, numOfvoxels);
     sin_phi_struct = reshape(sin(phi_struct), 1, 1, numOfvoxels);
     cos_phi_struct = reshape(cos(phi_struct), 1, 1, numOfvoxels);
+
+    zeros_struct = zeros(1, 1, numOfvoxels);
+    ones_struct = ones(1, numOfsegments, numOfvoxels);
 
     %%% Define the rotation matrices
     % Rot_str is the combination of 1. Rotation around y with theta_struct
@@ -22,9 +25,9 @@ function [E, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = SAXS_AD_optim_fb_orien
 
 
     %calculate for all projections
-    parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
-    %for ii = 1:length(projection) % RSD: Debug for loop  
-        
+    %parfor ii = 1:length(projection) %use parallel processing for the loop over all projections
+    for ii = 1:length(projection) % RSD: Debug for loop  
+        current_projection = projection(ii);
         data = double(projection(ii).data);
         
         Rot_exp_now = double(projection(ii).Rot_exp);       % Rotation matrix of projection (3x3), R_exp
