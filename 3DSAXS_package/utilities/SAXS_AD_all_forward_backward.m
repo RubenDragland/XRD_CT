@@ -29,11 +29,19 @@ function [E, grad_a, grad_theta_struct, grad_phi_struct ] = SAXS_AD_all_forward_
         if find_coefficients %RSD: Consider to remove this if/else. 
             [error_norm, AD_grad_coeffs, AD_grad_theta, AD_grad_phi] = dlfeval(@SAXS_AD_all_cost_function, theta_struct_it, phi_struct_it, a_temp_it , ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels); %, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels );
             
+            if p.GPU
+                AD_grad_coeffs = gather(AD_grad_coeffs);
+            end
             AD_grad_coeff = extractdata(AD_grad_coeffs); % RSD: No longer need for dlarrays
             grad_a = grad_a + reshape(AD_grad_coeff, ny, nx, nz, numOfCoeffs);
         else
             [error_norm, ~, AD_grad_theta, AD_grad_phi] = dlfeval(@SAXS_AD_all_cost_function, theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels); %, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels);
         end %RSD: Use thilde ~ for unused variables. aux_diff_poisson and proj_out_all removed entirely. 
+
+        if p.GPU
+            AD_grad_theta = gather(AD_grad_theta);
+            AD_grad_phi = gather(AD_grad_phi);
+        end
 
         error_norm = extractdata(error_norm);
         E = E + error_norm;
