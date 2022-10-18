@@ -9,6 +9,10 @@ function [error_norm, ad_grad ] = SAXS_AD_forward_backward(func, a_temp, Ylm, ny
             a_temp = gpuArray(a_temp); %RSD: Have this for only find grad or both?
         end
         [error_norm, ad_grad] = dlfeval(@SAXS_AD_cost_function, a_temp, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels ); %, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels);
+        if p.GPU
+            ad_grad = gather(ad_grad);
+            error_norm = gather(error_norm);
+        end
     else
         
         [error_norm, ad_grad] = SAXS_AD_cost_function( a_temp, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels ); %, Ylm, ny, nx, nz, numOfsegments, data, current_projection, Rot_exp_now, p, find_grad, X, Y, Z, numOfpixels);

@@ -41,6 +41,7 @@ function [E, grad_a, grad_theta_struct, grad_phi_struct ] = SAXS_AD_all_forward_
         if p.GPU
             AD_grad_theta = gather(AD_grad_theta);
             AD_grad_phi = gather(AD_grad_phi);
+            error_norm = gather(error_norm);
         end
 
         error_norm = extractdata(error_norm);
@@ -143,7 +144,7 @@ function [cumprod] = dlarray_repmat_cumprod_SH(ones_struct, cos_theta_sh_cut, nu
 
     copy_matrix = dlarray( ones(numOfCoeffs-1, size(ones_struct,2), size(ones_struct, 3)) );
 
-    for k = 1:(numOfCoeffs-1) %RSD: Think this is correct
+    for k = 1:(numOfCoeffs-1) 
         
         copy_matrix(k,:,:) = copy_matrix(k,:, :) .* cos_theta_sh_cut.^(2*k);
 
