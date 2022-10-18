@@ -208,7 +208,41 @@ z = (1:N(3)) - ceil(N(3)/2);
 
 %RSD: Implement if elseif else with the options being optimise all, orientation, coefficients, or not find grad
 
-if find_grad && find_orientation && find_coefficients
+if find_grad && p.python
+    
+    P = py.sys.path;
+    if count(P,'C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Autodiff_package') == 0
+        insert(P,int32(0),'C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Autodiff_package');
+    end
+    
+    py.importlib.import_module("forward_backward_AD");
+    
+    for ii = 1:length(projection)
+    %parfor ii = 1:length(projection)
+
+        theta_struct_it = py.numpy.array(theta_struct);
+        phi_struct_it = py.numpy.array(phi_struct);
+        a_temp_it = py.numpy.array(a_temp);
+        X = py.numpy.array(X);
+        Y = py.numpy.array(Y);
+        Z = py.numpy.array(Z);
+        unit_q_beamline = py.numpy.array(unit_q_beamline);
+        Ylm_coef = py.numpy.array(Ylm_coef);
+
+        current_projection = projection(ii);
+
+        %[error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = py.forward_backward_AD.main(pyargs("theta_struct_it",theta_struct_it, "phi_struct_it", phi_struct_it, "a_temp_it", a_temp_it,"ny", ny,"nx", nx, "nz", nz, "numOfsegments", numOfsegments,"current_projection", current_projection, "p", p, "X", X, "Y", Y,"Z", Z, "numOfpixels", numOfpixels, "unit_q_beamline", unit_q_beamline, "Ylm_coef", Ylm_coef, "find_coefficients", find_coefficients, "find_orientation", find_orientation, "numOfCoeffs", numOfCoeffs, "numOfvoxels", numOfvoxels) ); %py.forward_backward_AD.main(theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, find_orientation, numOfCoeffs, numOfvoxels);
+        res = py.forward_backward_AD.print_test("abc");
+        %[error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = py.forward_backward_AD.main(theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, find_orientation, numOfCoeffs, numOfvoxels);
+        res =  py.forward_backward_AD.main(theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, find_orientation, numOfCoeffs, numOfvoxels) ;
+        E = E + error_norm;
+        grad_a = grad_a + reshape(AD_grad_coeff, ny, nx, nz, numOfCoeffs);
+        grad_theta_struct = grad_theta_struct + reshape(AD_grad_theta, ny, nx, nz);
+        grad_phi_struct = grad_phi_struct + reshape(AD_grad_phi, ny,nx,nz);
+
+    end
+
+elseif find_grad && find_orientation && find_coefficients
 
     [E, grad_a, grad_theta_struct, grad_phi_struct] = SAXS_AD_all_forward_backward(theta_struct, phi_struct, a_temp, ny, nx, nz, numOfsegments, projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels); %RSD: Placeholder
 

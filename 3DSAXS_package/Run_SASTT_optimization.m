@@ -180,6 +180,7 @@ p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
 p.method = "bilinear";          % RSD: Choose method of interpolation.
 p.filter_2D = 3;                % RSD: The best filter.
 p.GPU = 0;
+p.python = 1;
 
 %if p.mode
 %    p.method = "nearest";        % RSD: Another safety net for method of interpolation.

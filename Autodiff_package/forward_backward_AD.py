@@ -2,6 +2,11 @@ import torch
 import numpy as np
 
 
+def print_test(string):
+    print(string)
+    return (string, 1, 2)
+
+
 def main(
     theta_struct_it,
     phi_struct_it,
@@ -52,7 +57,19 @@ def main(
         numOfvoxels,
     )
 
-    return error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi
+    # Format back function here.
+    error_norm = np.float64(error_norm)
+    AD_grad_coeff = AD_grad_coeff.cpu().detach().numpy()
+    AD_grad_theta = AD_grad_theta.cpu().detach().numpy()
+    AD_grad_phi = AD_grad_phi.cpu().detach().numpy()
+
+    return (
+        error_norm,
+        AD_grad_coeff,
+        AD_grad_theta,
+        AD_grad_phi,
+    )
+    # Probably matlab compatible.
 
 
 def format_matlab_input(
@@ -63,9 +80,9 @@ def format_matlab_input(
     After this, assume everything is in torch.
     """
 
-    theta_struct_it = torch.tensor(theta_struct_it._data.reshape(theta_struct_it.size))
-    phi_struct_it = torch.tensor(phi_struct_it._data.reshape(phi_struct_it.size))
-    a_temp_it = torch.tensor(a_temp_it._data.reshape(a_temp_it.size))
+    theta_struct_it = torch.tensor(theta_struct_it.reshape(theta_struct_it.size))
+    phi_struct_it = torch.tensor(phi_struct_it.reshape(phi_struct_it.size))
+    a_temp_it = torch.tensor(a_temp_it.reshape(a_temp_it.size))
 
     # Add more transforms as needed.
 
@@ -222,16 +239,23 @@ def SAXS_AD_cost_function(
         AD_grad_coeff = torch.autograd.grad(
             error_norm, a_temp, retain_graph=False
         )  # Consider to batchify this code despite loosing parloop.
+    else:
+        AD_grad_coeff = None
     if find_orientation:
         AD_grad_theta = torch.autograd.grad(
             error_norm, theta_struct, retain_graph=False
         )
         AD_grad_phi = torch.autograd.grad(error_norm, phi_struct, retain_graph=False)
+    else:
+        AD_grad_theta = None
+        AD_grad_phi = None  # Might need to return zeros instead of None
 
     return error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi
+    # RSD: What about shape?
 
 
-def page_multiply(A: torch.tensor, B: torch.tensor):  # Check if numba compatible
+def page_multiply(A: torch.tensor, B: torch.tensor):
+    # Check if numba compatible. More variables need to be converted to tensor.
 
     assert A.size[-1] == B.size[-1]
 

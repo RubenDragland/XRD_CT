@@ -627,6 +627,8 @@ if find_grad
     % MGS Notice that here we miss an opportunity for optimization,
     % all the gradients are calculated above, even those for orders that
     % will not be used.
+    %RSD: Do not understand this part entirely... Is code not optimised?
+    %RSD: Believe is unnecessary. 
     if find_coefficients
         grad_a_temp = zeros(ny, nx, nz, numOfordersopt);
         counter = 1;
