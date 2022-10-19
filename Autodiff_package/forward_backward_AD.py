@@ -1,6 +1,11 @@
 import torch
 import numpy as np
 
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
 
 def print_test(string):
     print(string)
@@ -85,6 +90,7 @@ def format_matlab_input(
     a_temp_it = torch.tensor(a_temp_it.reshape(a_temp_it.size))
 
     # Add more transforms as needed.
+    # Add possible all conversion of numbers
 
     return theta_struct_it, phi_struct_it, a_temp_it
 
@@ -174,8 +180,10 @@ def SAXS_AD_cost_function(
 ):
 
     data = current_projection["data"]
-    Rot_exp_now = current_projection["Rot_exp_now"]
-    unit_q_object = Rot_exp_now @ unit_q_beamline
+    Rot_exp_now = current_projection["Rot_exp"]
+    unit_q_object = torch.tensor(Rot_exp_now @ unit_q_beamline)
+
+    numOfvoxels = int(np.squeeze(numOfvoxels))
 
     sin_theta_struct = torch.reshape(torch.sin(theta_struct), (1, 1, numOfvoxels))
     cos_theta_struct = torch.reshape(torch.cos(theta_struct), (1, 1, numOfvoxels))
@@ -185,32 +193,58 @@ def SAXS_AD_cost_function(
     zeros_struct = torch.zeros((1, 1, numOfvoxels))
     ones_struct = torch.ones((1, 1, numOfvoxels))
 
-    Rot_str = torch.tensor(
+    # Rot_str = torch.tensor(
+    #     [
+    #         [
+    #             cos_theta_struct * cos_phi_struct,
+    #             cos_theta_struct * sin_phi_struct,
+    #             -sin_theta_struct,
+    #         ],
+    #         [-sin_phi_struct, cos_phi_struct, zeros_struct],
+    #         [
+    #             sin_theta_struct * cos_phi_struct,
+    #             sin_theta_struct * sin_phi_struct,
+    #             cos_theta_struct,
+    #         ],
+    #     ]
+    # )
+    Rot_str = torch.stack(
         [
-            [
-                cos_theta_struct * cos_phi_struct,
-                cos_theta_struct * sin_phi_struct,
-                -sin_theta_struct,
-            ],
-            [-sin_phi_struct, cos_phi_struct, zeros_struct],
-            [
-                sin_theta_struct * cos_phi_struct,
-                sin_theta_struct * sin_phi_struct,
-                cos_theta_struct,
-            ],
+            cos_theta_struct * cos_phi_struct,
+            cos_theta_struct * sin_phi_struct,
+            -sin_theta_struct,
+            -sin_phi_struct,
+            cos_phi_struct,
+            zeros_struct,
+            sin_theta_struct * cos_phi_struct,
+            sin_theta_struct * sin_phi_struct,
+            cos_theta_struct,
         ]
-    )
-    Rot_str = torch.reshape(Rot_str, (3, 3, numOfvoxels))  # Should it be like this?
+    ).reshape((3, 3, numOfvoxels))
 
-    q_pp = torch.matmul(Rot_str, unit_q_object)
+    logging.debug("Rot_str shape: {}".format(Rot_str.shape))
+    logging.debug("unit_q_object shape: {}".format(unit_q_object.shape))
+    # Rot_str = torch.reshape(Rot_str, (3, 3, numOfvoxels))  # Should it be like this?
+
+    q_pp = torch.matmul(
+        Rot_str, unit_q_object
+    )  # RSD: Figure out basxpagemult to manage this.
     cos_theta_sh_cut = q_pp[3, :, :]
+    logging.debug("cos_theta_sh_cut shape: {}".format(cos_theta_sh_cut.shape))
 
     block_cos_theta_powers = repmat_cumprod_SH(
         ones_struct, cos_theta_sh_cut, numOfCoeffs
     )
+    logging.debug(
+        "block_cos_theta_powers shape: {}".format(block_cos_theta_powers.shape)
+    )
 
     Ylm = page_multiply(Ylm_coef, block_cos_theta_powers)
+    logging.debug("Ylm shape: {}".format(Ylm.shape))
+
     sumlm_alm_Ylm = page_multiply(a_temp, Ylm)
+    logging.debug("sumlm_alm_Ylm shape: {}".format(sumlm_alm_Ylm.shape))
+
     data_synt_vol = torch.permute(torch.abs(sumlm_alm_Ylm**2), (3, 2, 1))
     data_synt_vol = torch.reshape(data_synt_vol, (ny, nx, nz, numOfsegments))
 
@@ -255,8 +289,23 @@ def SAXS_AD_cost_function(
 
 
 def page_multiply(A: torch.tensor, B: torch.tensor):
-    # Check if numba compatible. More variables need to be converted to tensor.
+    # Use Einstein sum in different cases
 
+    assert len(A.size()) == 3, "A is not a 3D tensor"
+    assert len(B.size()) <= len(A.size()), "B is not a 3D or 2D tensor"
+
+    if A.size()[-1] == B.size()[-1] and len(B.size()) == 3:
+
+        C = torch.einsum("ijm,jkm->ikm", A, B)
+    elif len(A.size()) > len(B.size()):
+
+        C = torch.einsum("ijk,jm->imk", A, B)
+    else:
+        raise ValueError(
+            "A and B have incompatible shapes. Please implement desired einsum"
+        )
+    """
+    Does not work, but should work in one case
     assert A.size[-1] == B.size[-1]
 
     for i in range(A.size[-1]):
@@ -264,8 +313,8 @@ def page_multiply(A: torch.tensor, B: torch.tensor):
         A[:, :, i] = torch.matmul(
             A[:, :, i], B[:, :, i]
         )  # Check if works compared to creating new Tensor.
-
-    return A
+    """
+    return C
 
 
 def repmat_cumprod_SH(ones_struct, cos_theta_sh_cut, numOfCoeffs):

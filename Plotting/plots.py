@@ -61,7 +61,7 @@ mpl.rcParams['']
 """
 
 
-# Borrow some code to create colormap from color palette
+# Borrow some code to create colormap from color palette https://towardsdatascience.com/beautiful-custom-colormaps-with-matplotlib-5bab3d1f0e72 and https://www.delftstack.com/howto/matplotlib/custom-colormap-using-python-matplotlib/#use-rgba-values-to-create-custom-listed-colormap-in-python
 
 
 def hex_to_rgb(value):
