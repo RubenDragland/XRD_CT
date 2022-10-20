@@ -1,7 +1,7 @@
 import torch
 import numpy as np
-
 import logging
+import scipy.io
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -84,18 +84,10 @@ def main(
         numOfvoxels,
     )
 
-    # Format back function here.
-    error_norm = np.float64(error_norm)
-    AD_grad_coeff = AD_grad_coeff.cpu().detach().numpy()
-    AD_grad_theta = AD_grad_theta.cpu().detach().numpy()
-    AD_grad_phi = AD_grad_phi.cpu().detach().numpy()
+    logging.debug("error_norm: {}".format(error_norm))
+    logging.debug("AD_grad_coeff shape: {}".format(AD_grad_coeff.shape))
 
-    return (
-        error_norm,
-        AD_grad_coeff,
-        AD_grad_theta,
-        AD_grad_phi,
-    )
+    return format_matlab_output(error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi)
     # Probably matlab compatible.
 
 
@@ -111,7 +103,7 @@ def format_matlab_input(
     numOfpixels,
     numOfCoeffs,
     numOfvoxels,
-):  # , ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, find_orientation, numOfCoeffs, numOfvoxels):
+):
     """
     Deals with matlab engine things.
     After this, assume everything is in torch.
@@ -148,6 +140,32 @@ def format_matlab_input(
         numOfpixels,
         numOfCoeffs,
         numOfvoxels,
+    )
+
+
+def format_matlab_output(error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi):
+    """
+    Prepares results for matlab engine.
+    """
+
+    error_norm = np.float64(error_norm)
+    # RSD: Hopefully results in a 3D numpy array with proper size.
+    if AD_grad_coeff is not None:
+        AD_grad_coeff = AD_grad_coeff.cpu().detach().numpy()
+    else:
+        AD_grad_coeff = np.array([])
+    if AD_grad_theta is not None:
+        AD_grad_theta = AD_grad_theta.cpu().detach().numpy()
+        AD_grad_phi = AD_grad_phi.cpu().detach().numpy()
+    else:
+        AD_grad_theta = np.array([])
+        AD_grad_phi = np.array([])
+
+    return (
+        error_norm,
+        AD_grad_coeff,
+        AD_grad_theta,
+        AD_grad_phi,
     )
 
 
@@ -237,8 +255,11 @@ def SAXS_AD_cost_function(
     numOfvoxels,
 ):
     # RSD: Want data as 3D tensor. Therefore no reshape.
-    data = torch.tensor(current_projection["data"])
+    data = torch.tensor(np.array(current_projection["data"]))
 
+    # Rot_exp_now = np.array(
+    #     current_projection["Rot_exp"].reshape(current_projection["Rot_exp"].size)
+    # )  # RSD: Cannot find shape...
     Rot_exp_now = current_projection["Rot_exp"]
     unit_q_object = torch.tensor(Rot_exp_now @ unit_q_beamline)
 
@@ -330,30 +351,48 @@ def SAXS_AD_cost_function(
 
     proj_out_all = arb_projection(data_synt_vol, X, Y, Z, Rot_exp_now, p, xout, yout)
 
-    aux_diff_poisson = (
-        torch.sqrt(proj_out_all) - torch.sqrt(data)
-    ) * current_projection["window_mask"]
-    # RSD: Check shape np.squeeze?
-
+    # logging.debug("proj_out_all shape: {}".format(proj_out_all.shape))
+    logging.debug("data shape: {}".format(data.shape))
+    logging.debug(
+        "mask shappe: {}".format(
+            torch.from_numpy(current_projection["window_mask"]).shape
+        )
+    )
+    aux_diff_poisson = torch.mul(
+        (torch.sqrt(proj_out_all) - torch.sqrt(torch.permute(data, (2, 0, 1)))),
+        torch.from_numpy(np.array(current_projection["window_mask"])),
+    )
+    # RSD: Had to reorder dimensions to match expected and actual broadcast. Optimise later
+    logging.debug(f"aux_diff_poisson shape: {aux_diff_poisson.shape}")
+    # RSD: Permute aux_diff_poisson
+    aux_diff_poisson = torch.permute(
+        aux_diff_poisson, (1, 2, 0)
+    )  # RSD: OK? Bit unnecessary given that next is a sum over dimensions.
     error_norm = (
         2 * torch.sum(aux_diff_poisson**2, dim=(2, 1, 0)) / numOfpixels
     )  # Check dims
 
+    error_norm.backward()  # Backpropate gradient
+
     if find_coefficients:
-        AD_grad_coeff = torch.autograd.grad(
-            error_norm, a_temp, retain_graph=False
-        )  # Consider to batchify this code despite loosing parloop.
+        AD_grad_coeff = a_temp.grad
+        # AD_grad_coeff = torch.autograd.grad(
+        #     error_norm, a_temp, retain_graph=False
+        # )  # Consider to batchify this code despite loosing parloop.
     else:
         AD_grad_coeff = None
     if find_orientation:
-        AD_grad_theta = torch.autograd.grad(
-            error_norm, theta_struct, retain_graph=False
-        )
-        AD_grad_phi = torch.autograd.grad(error_norm, phi_struct, retain_graph=False)
+        AD_grad_theta = theta_struct.grad
+        AD_grad_phi = phi_struct.grad
+        # AD_grad_theta = torch.autograd.grad(
+        #     error_norm, theta_struct, retain_graph=False
+        # )
+        # AD_grad_phi = torch.autograd.grad(error_norm, phi_struct, retain_graph=False)
     else:
         AD_grad_theta = None
         AD_grad_phi = None  # Might need to return zeros instead of None
 
+    logging.debug(f"Ad_grad_coeff: {AD_grad_coeff}")
     return error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi
     # RSD: What about shape?
 
@@ -432,8 +471,9 @@ def arb_projection(tomo_obj_all, X, Y, Z, R, p, xout, yout):  # Assume numpy
     Ty = (Yp - min_yout + 1) - Ay
 
     proj_out_all = torch.zeros(
-        len(yout), len(xout), tomo_obj_all.shape[-1], requires_grad=True
+        len(yout), len(xout), tomo_obj_all.shape[-1], requires_grad=False
     )
+    # RSD: Check if grad must be True or False.
 
     logging.debug("proj_out_all shape: {}".format(proj_out_all.shape))
     logging.debug("tomo_obj_all shape: {}".format(tomo_obj_all.shape))
@@ -441,6 +481,8 @@ def arb_projection(tomo_obj_all, X, Y, Z, R, p, xout, yout):  # Assume numpy
     page_out = nRows * nCols
     page_in = Ax.shape[0] * np.product(Ax.shape[1:])
     nElements = np.product(Ax.shape)
+
+    logging.debug(f"nRows: {nRows} nCols: {nCols} nPages: {nPages}")
 
     proj_out_all = array_interpolate(
         proj_out_all,
@@ -452,24 +494,10 @@ def arb_projection(tomo_obj_all, X, Y, Z, R, p, xout, yout):  # Assume numpy
         page_in,
         page_out,
         nElements,
-        nPages,
-        nRows,
         nCols,
+        nRows,
+        nPages,
     )
-    # proj_out_all = loop_interpolate(
-    #     proj_out_all,
-    #     tomo_obj_all,
-    #     Ax,
-    #     Ay,
-    #     Tx,
-    #     Ty,
-    #     page_in,
-    #     page_out,
-    #     nElements,
-    #     nPages,
-    #     nRows,
-    #     nCols,
-    # )
 
     if p["filter_2D"] == 0:
         pass
@@ -483,11 +511,24 @@ def arb_projection(tomo_obj_all, X, Y, Z, R, p, xout, yout):  # Assume numpy
     if p["filter_2D"] > 0:
 
         filter_2D = torch.outer(filter_2D, filter_2D)
+        filter_2D = torch.unsqueeze(torch.unsqueeze(filter_2D, 0), 0)
+        filter_2D = filter_2D.expand((nPages, nPages, -1, -1))
 
-        for i in range(proj_out_all.size(2)):
-            proj_out_all[:, :, i] = torch.ifft2(
-                torch.fft2(proj_out_all[:, :, i]) * torch.fft2(filter_2D)
-            )  # Convolutional theorem. Check if works.
+        # proj_out_all = torch.permute(
+        #     torch.nn.functional.conv2d(
+        #         torch.permute(proj_out_all, (2, 0, 1)), filter_2D, padding="same"
+        #     ),
+        #     (1, 2, 0),
+        # )  # RSD: Check shape.
+        proj_out_all = torch.nn.functional.conv2d(
+            torch.permute(proj_out_all, (2, 0, 1)), filter_2D, padding="same"
+        )
+        logging.debug("Proj Shape after conv: ", proj_out_all.shape)
+
+        # for i in range(proj_out_all.size(2)):
+        #     proj_out_all[:, :, i] = torch.fft.ifft2(
+        #         torch.fft.fft2(proj_out_all[:, :, i]) * torch.fft.fft2(filter_2D)
+        #     )  # Convolutional theorem. Check if works. Size issue.
 
     return proj_out_all
 
@@ -553,15 +594,46 @@ def array_interpolate(
     """Interpolation with array operations to avoid for loop."""
 
     logging.debug("Ax shape: {}".format(Ax.shape))
-    logging.debug("Ax: {}".format(Ax))
-    indices = np.argwhere((Ax > 0) and (Ax < nCols) and (Ay > 0) and (Ay < nRows))
+    # RSD: Assume Ax is numpy array.
+    indices = np.argwhere((Ax > 0) & (Ax < nCols) & (Ay > 0) & (Ay < nRows))
+    arg_0, arg_1, arg_2 = indices[:, 0], indices[:, 1], indices[:, 2]
 
-    ind = Ay[indices] + nRows * Ax[indices]
-    temp1 = Tx[indices] * Ty[indices]
-    temp2 = Tx[indices] * (1 - Ty[indices])
-    temp3 = (1 - Tx[indices]) * Ty[indices]
-    temp4 = (1 - Tx[indices]) * (1 - Ty[indices])
+    ind = Ay[arg_0, arg_1, arg_2] + nRows * Ax[arg_0, arg_1, arg_2]
 
+    temp1 = torch.from_numpy(Tx[arg_0, arg_1, arg_2] * Ty[arg_0, arg_1, arg_2])
+    temp2 = torch.from_numpy(Tx[arg_0, arg_1, arg_2] * (1 - Ty[arg_0, arg_1, arg_2]))
+    temp3 = torch.from_numpy(1 - Tx[arg_0, arg_1, arg_2] * Ty[arg_0, arg_1, arg_2])
+    temp4 = torch.from_numpy(1 - Tx[arg_0, arg_1, arg_2] * 1 - Ty[arg_0, arg_1, arg_2])
+
+    logging.debug("indices shape: {}".format(indices.shape))
+    logging.debug("tomo_obj_all shape: {}".format(tomo_obj_all.shape))
+    logging.debug(f"\nAy: {Ay[arg_0, arg_1, arg_2]}\nAx: {Ax[arg_0, arg_1, arg_2]}")
+    logging.debug(f"temp1 shape: {temp1.shape}")
+    logging.debug(
+        f"tomo_obj_all indexed shape: {tomo_obj_all[arg_0, arg_1, arg_2, :].shape}"
+    )
+
+    # RSD: Believe the indexing has to be this simple
+    proj_out_all[Ay[arg_0, arg_1, arg_2], Ax[arg_0, arg_1, arg_2]] += (
+        tomo_obj_all[arg_0, arg_1, arg_2].T * temp1
+    ).T
+
+    proj_out_all[Ay[arg_0, arg_1, arg_2] - 1, Ax[arg_0, arg_1, arg_2]] += (
+        tomo_obj_all[arg_0, arg_1, arg_2, :].T * temp2
+    ).T
+    proj_out_all[Ay[arg_0, arg_1, arg_2], Ax[arg_0, arg_1, arg_2] - 1] += (
+        tomo_obj_all[arg_0, arg_1, arg_2, :].T * temp3
+    ).T
+    proj_out_all[Ay[arg_0, arg_1, arg_2] - 1, Ax[arg_0, arg_1, arg_2] - 1] += (
+        tomo_obj_all[arg_0, arg_1, arg_2, :].T * temp4
+    ).T
+    # RSD: Here one could consider using sparse representation of the projection matrix. However, assumed to be dense enough.
+
+    # RSD: Rage about linear indexing in MATLAB: https://www.mathworks.com/matlabcentral/answers/1015-why-does-matlab-use-linear-indexing
+    # RSD: Can index as a single COLUMN vector. Hence linearly subtract one index, is to subtract one row.
+
+    # RSD: Believe there is no need for this loop with array operations and 3D tensors. MATLAB iterates over all elements.
+    """
     for j in range(nPages):
         shift_in = indices + j * page_in
         shift_out = ind + j * page_out
@@ -570,5 +642,54 @@ def array_interpolate(
         proj_out_all[shift_out - 1] += tomo_obj_all[shift_in] * temp2
         proj_out_all[shift_out - nRows] += tomo_obj_all[shift_in] * temp3
         proj_out_all[shift_out - nRows - 1] += tomo_obj_all[shift_in] * temp4
+    """
 
     return proj_out_all
+
+
+if __name__ == "__main__":
+    # Test code
+    workspace = scipy.io.loadmat(
+        r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT/Data Sets/Debug Data/workspace_calc_grad.mat"
+    )
+    theta_struct_it = workspace["theta_struct"]
+    phi_struct_it = workspace["phi_struct"]
+    a_temp_it = workspace["a_temp"]
+    ny = workspace["ny"]
+    nx = workspace["nx"]
+    nz = workspace["nz"]
+    numOfsegments = workspace["numOfsegments"]
+    current_projection = workspace["projection"][0, 0]  # [2]
+    p = workspace["p"]
+    X = workspace["X"]
+    Y = workspace["Y"]
+    Z = workspace["Z"]
+    numOfpixels = workspace["numOfpixels"]
+    unit_q_beamline = workspace["unit_q_beamline"]
+    Ylm_coef = workspace["Ylm_coef"]
+    find_coefficients = workspace["find_coefficients"]
+    find_orientation = workspace["find_orientation"]
+    numOfCoeffs = workspace["numOfCoeffs"]
+    numOfvoxels = workspace["numOfvoxels"]
+
+    main(
+        theta_struct_it,
+        phi_struct_it,
+        a_temp_it,
+        ny,
+        nx,
+        nz,
+        numOfsegments,
+        current_projection,
+        p,
+        X,
+        Y,
+        Z,
+        numOfpixels,
+        unit_q_beamline,
+        Ylm_coef,
+        find_coefficients,
+        find_orientation,
+        numOfCoeffs,
+        numOfvoxels,
+    )

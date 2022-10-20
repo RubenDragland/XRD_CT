@@ -9,10 +9,10 @@ def page_multiply(A: torch.tensor, B: torch.tensor):
     # Check if numba compatible. More variables need to be converted to tensor.
 
     # assert A.size[1] == B.size[0], "A and B are not compatible for multiplication"
-    assert len(A.size()) == 3, "A is not a 3D tensor"
-    assert len(B.size()) <= len(A.size()), "B is not a 3D or 2D tensor"
+    # assert len(A.size()) == 3, "A is not a 3D tensor"
+    # assert len(B.size()) <= len(A.size()), "B is not a 3D or 2D tensor"
 
-    if A.size()[-1] == B.size()[-1] and len(B.size()) == 3:
+    if A.size()[-1] == B.size()[-1] and len(A.shape) == 3 and len(B.size()) == 3:
 
         C = torch.einsum("ijm,jkm->ikm", A, B)  # Check this.
 
@@ -24,20 +24,31 @@ def page_multiply(A: torch.tensor, B: torch.tensor):
 
     elif len(A.size()) > len(B.size()):
 
-        A = torch.einsum("ijk,jm->imk", A, B)
+        C = torch.einsum("ijk,jm->imk", A, B)
         # C = torch.zeros(A.size()[1], B.size()[1], A.size()[-1])
         # for i in range(A.size()[-1]):
         # C[:, :, i] = torch.tensordot(
         #    A[:, :, i], B[:, :], dims=([0], [0])
         # )  # torch.matmul(A[:, :, i], B[:, :])
         #    C[:, :, i] = torch.matmul(A[:, :, i], B[:, :])
+
+    elif len(A.shape) < len(B.shape) and len(B.shape) == 3:
+
+        if len(A.shape) == 1:
+            A = A.unsqueeze(0)  # RSD: Add batch dimension
+
+        C = torch.einsum("ij,jkm->ikm", A, B)  # RSD: Works for a_temp as well?
+
     return C
 
 
 # A = torch.rand((3, 3, 64))
 # B = torch.rand((3, 8))
-A = torch.rand((3, 3, 3))
-B = torch.rand((3, 3, 3))
+A = torch.rand((64))
+B = torch.rand((1, 1, 64))
+# print(A, A.size(), A.shape)
+# print(torch.rand(1), torch.rand(1).size(), torch.rand(1).shape)
+# print(torch.rand(1).unsqueeze(0), torch.rand(1).unsqueeze(0).size())
 
 times = 100
 
@@ -50,9 +61,14 @@ tac = time.time()
 
 print("torch.matmul(A,B) time: ", tac - tic)
 
+print(A)
+
 eng = matlab.engine.start_matlab()
+A = torch.unsqueeze(torch.unsqueeze(A, 0), 0)
+print(A.shape)
 A = matlab.double(A.numpy().tolist())
 B = matlab.double(B.numpy().tolist())
+
 
 tic = time.time()
 for i in range(times):
@@ -75,7 +91,7 @@ if np.allclose(C.numpy(), np.array(E), atol=1e-8):
 if np.allclose(np.array(D), np.array(E), atol=1e-8):
     print("Validation of bsxpagemult and pagemtimes")
 
-print(C.numpy(), np.array(D), np.array(E))
+# print(C.numpy(), np.array(D), np.array(E))
 eng.quit()
 sys.exit()
 
