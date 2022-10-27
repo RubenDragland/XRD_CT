@@ -1,47 +1,62 @@
 
-%Test
-x0 = dlarray([-1,2]);
-tic
-[fval,gradval] = dlfeval(@rosenbrock,x0);
-toc
-display(gradval);
+A = dlarray([3]);
+B = dlarray([0.5]);
+Theta = dlarray([0.33]);
 
-x0 = [-1,2];
-tic
-[E, grad] = autograd_test(@rosenbrock, x0);
-toc
-display(grad);
+[fval, grad_A, grad_B, grad_T] = dlfeval(@exp_sin_squared, A, B, Theta);
 
-% Parameters
+display( fval); display(grad_A); display(grad_B) ; display(grad_T);
 
-mask_omega = ones(1,1,1);
-
-a_coeffs = ones( 1,1,1,1,1) .* 69; 
-Y_lms = ones(1,1,1,1,1) .*169 ; 
-
-estimated_I = estimate_I(a_coeffs, Y_lms);
-measured_I = ones(1,1,1,1) .* 19;
-transparency = ones(1,1,1) .*0.5;
-
-times = 10000;
-% Time symbolic
-
-tic
-for ii = drange(1:times)
-    sym_eps_grad = epsilon_coeff(mask_omega, mask_omega, estimated_I, measured_I, transparency, Y_lms, a_coeffs, Y_lms );
+function [y, dydA, dydB, dydT] = exp_sin_squared(A, B, Theta)
+    y = A .* exp( - B .* sin(Theta) .^2) ;    
+    dydA = dlgradient(y, A); 
+    dydB = dlgradient(y,B);
+    dydT = dlgradient(y,Theta); 
 end
-toc
-display(sym_eps_grad);
+
+% %Test
+% x0 = dlarray([-1,2]);
+% tic
+% [fval,gradval] = dlfeval(@rosenbrock,x0);
+% toc
+% display(gradval);
+% 
+% x0 = [-1,2];
+% tic
+% [E, grad] = autograd_test(@rosenbrock, x0);
+% toc
+% display(grad);
+% 
+% % Parameters
+% 
+% mask_omega = ones(1,1,1);
+% 
+% a_coeffs = ones( 1,1,1,1,1) .* 69; 
+% Y_lms = ones(1,1,1,1,1) .*169 ; 
+% 
+% estimated_I = estimate_I(a_coeffs, Y_lms);
+% measured_I = ones(1,1,1,1) .* 19;
+% transparency = ones(1,1,1) .*0.5;
+% 
+% times = 10000;
+% % Time symbolic
+% 
+% tic
+% for ii = drange(1:times)
+%     sym_eps_grad = epsilon_coeff(mask_omega, mask_omega, estimated_I, measured_I, transparency, Y_lms, a_coeffs, Y_lms );
+% end
+% toc
+% display(sym_eps_grad);
 
 % Time AD
 
-tic
-for ii = drange(1:times)
-    [ad_eps, ad_grad] = matlab_autograd(@cost_function, a_coeffs, mask_omega, Y_lms, measured_I, transparency);
-end
-toc
-
-display(ad_grad);
+% tic
+% for ii = drange(1:times)
+%     [ad_eps, ad_grad] = matlab_autograd(@cost_function, a_coeffs, mask_omega, Y_lms, measured_I, transparency);
+% end
+% toc
+% 
+% display(ad_grad);
 
 
 %Symbolic case
@@ -101,6 +116,9 @@ y = 100*(x(2) - x(1).^2).^2 + (1 - x(1)).^2;
 dydx = dlgradient(y,x);
 
 end
+
+
+
 
 
 

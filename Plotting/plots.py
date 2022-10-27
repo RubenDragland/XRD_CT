@@ -321,3 +321,149 @@ def plot_SH(ax, l=0, m=0):
     ax.set_ylim(-ax_lim, ax_lim)
     ax.set_zlim(-ax_lim, ax_lim)
     ax.axis("off")
+
+
+def plot_debugging_coeffs(mat_paths: list, titles: list, normalise=False):
+    rows = 2
+    cols = 2
+    fig, axs = plt.subplots(rows, cols, sharex=True, sharey=False)
+
+    for i, (ax, path) in enumerate(zip(np.reshape(axs, (rows * cols,)), mat_paths)):
+
+        mat = scipy.io.loadmat(path)
+        coeffs = np.ndarray.flatten(mat["s"]["a"][0, 0][0, 0][0])
+
+        if normalise:
+            coeffs /= np.max(coeffs)
+
+        x = np.arange(0, len(coeffs))
+        ax.bar(x, coeffs)
+        ax.set_title(titles[i])
+        ax.set_xlabel("Coefficient index")
+        ax.set_ylabel("Coefficient value")
+        if normalise:
+            ax.set_ylim(0, 1)
+        else:
+            ax.set_ylim(-5, 69)
+
+    correct = np.ndarray.flatten(
+        scipy.io.loadmat(mat_paths[0])["s"]["a"][0, 0][0, 0][0]
+    )
+    incorrect_AD = np.ndarray.flatten(
+        scipy.io.loadmat(mat_paths[1])["s"]["a"][0, 0][0, 0][0]
+    )
+    incorrect_python = np.ndarray.flatten(
+        scipy.io.loadmat(mat_paths[2])["s"]["a"][0, 0][0, 0][0]
+    )
+    ax = axs[-1, -1]
+    if normalise:
+        error_AD = np.abs(correct - incorrect_AD) / np.abs(correct)
+        error_python = np.abs(correct - incorrect_python) / np.abs(correct)
+        ax.set_ylabel("Relative Error")
+        ax.set_ylim(0, 2)
+    else:
+        error_AD = np.abs(correct - incorrect_AD)
+        error_python = np.abs(correct - incorrect_python)
+        ax.set_ylabel("Absolute Error")
+
+    ax.bar(x, error_AD, width=0.5, label="AD")
+    ax.bar(x + 0.5, error_python, width=0.5, label="Python")
+    ax.legend()
+
+    ax.set_xlabel("Coefficient index")
+    ax.set_title("Compared to symbolic")
+
+    plt.show()
+    return
+
+
+def plot_debugging_orientations(mat_paths: list, titles: list, shape):
+    rows = shape[0]
+    cols = shape[1]
+
+    fig, axs = plt.subplots(rows, cols, sharex=True, sharey=True)
+
+    for i, (ax, path) in enumerate(zip(np.reshape(axs, (rows * cols,)), mat_paths)):
+
+        mat = scipy.io.loadmat(path)
+        theta = np.ndarray.flatten(mat["s"]["theta"][0, 0][0, 0][0])
+        phi = np.ndarray.flatten(mat["s"]["phi"][0, 0][0, 0][0])
+        x = np.arange(len(phi))
+        ax.bar(x, theta, width=0.5, label="Theta")
+        ax.bar(x + 0.5, phi, width=0.5, label="Phi")
+        ax.set_title(titles[i])
+        ax.set_xlabel("Voxel index")
+        ax.set_ylabel("Orientation (radians)")
+        ax.legend()
+
+    plt.show()
+    return
+
+
+def plot_result_heatmap(tt_result_AD, tt_result_symbolic, title):
+
+    ylabels = ["a0", "a2", "a4", "a6", "\u03B8", "\u03C6"]
+    x_length = len(tt_result_AD)
+    num_coeffs = 4
+
+    Ad_a = np.vstack(
+        (
+            np.ndarray.flatten(tt_result_AD.a0),
+            np.ndarray.flatten(tt_result_AD.a2),
+            np.ndarray.flatten(tt_result_AD.a4),
+            np.ndarray.flatten(tt_result_AD.a6),
+        )
+    )  # np.ndarray.flatten(tt_result_AD.a)
+    Ad_theta = np.ndarray.flatten(tt_result_AD.theta)
+    Ad_phi = np.ndarray.flatten(tt_result_AD.phi)
+
+    # Sym_a = np.ndarray.flatten(tt_result_symbolic.a)
+    Sym_a = np.vstack(
+        (
+            np.ndarray.flatten(tt_result_symbolic.a0),
+            np.ndarray.flatten(tt_result_symbolic.a2),
+            np.ndarray.flatten(tt_result_symbolic.a4),
+            np.ndarray.flatten(tt_result_symbolic.a6),
+        )
+    )
+    Sym_theta = np.ndarray.flatten(tt_result_symbolic.theta)
+    Sym_phi = np.ndarray.flatten(tt_result_symbolic.phi)
+
+    err_a = np.abs(Ad_a - Sym_a) / np.abs(Sym_a + 1e-10)
+    err_theta = np.abs(Ad_theta - Sym_theta) / np.abs(Sym_theta + 1e-10)
+    err_phi = np.abs(Ad_phi - Sym_phi) / np.abs(Sym_phi + 1e-10)
+    print(Ad_a.shape)
+    img = np.vstack(
+        (err_a[0, :], err_a[1, :], err_a[2, :], err_a[3, :], err_theta, err_phi)
+    )  # Bit manual, but but
+
+    fig, ax = plt.subplots(figsize=(20, 8))
+    ax.imshow(img, cmap=XRDCT_palette_cmp, vmin=0, vmax=2)
+    ax.set_yticks(np.arange(len(ylabels)), labels=ylabels)
+
+    for i in range(x_length):
+        for j in range(num_coeffs):
+            text = ax.text(
+                i,
+                j,
+                f"{err_a[j, i]:.2f}",
+                ha="center",
+                va="center",
+                color="w",
+            )
+        text = ax.text(
+            i, j + 1, f"{err_theta[i]:.2f}", ha="center", va="center", color="w"
+        )
+        text = ax.text(
+            i, j + 2, f"{err_phi[i]:.2f}", ha="center", va="center", color="w"
+        )
+    # cbar = ax.figure.colorbar(img, ax=ax, location="bottom")
+    # cbar.ax.set_ylabel("Relative error", rotation=-90, va="bottom")
+    ax.figure.colorbar(img, ax=ax, orientation="horizontal")
+    ax.set_title(title)
+    plt.show()
+
+
+def plot_tt_3D_quiver(tt_result):
+
+    return

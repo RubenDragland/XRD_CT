@@ -4,7 +4,7 @@ import logging
 import scipy.io
 
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 def print_test(string):
@@ -255,7 +255,7 @@ def SAXS_AD_cost_function(
     numOfvoxels,
 ):
     # RSD: Want data as 3D tensor. Therefore no reshape.
-    data = torch.tensor(np.array(current_projection["data"]))
+    data = torch.from_numpy(np.array(current_projection["data"]))
 
     # Rot_exp_now = np.array(
     #     current_projection["Rot_exp"].reshape(current_projection["Rot_exp"].size)
@@ -330,7 +330,6 @@ def SAXS_AD_cost_function(
     data_synt_vol = torch.reshape(data_synt_vol, (ny, nx, nz, numOfsegments))
 
     logging.debug("data_synt_vol shape: {}".format(data_synt_vol.shape))
-
     logging.debug("Data type, shape: {}, {}".format(data.dtype, data.shape))
 
     xout = (
@@ -351,18 +350,13 @@ def SAXS_AD_cost_function(
 
     proj_out_all = arb_projection(data_synt_vol, X, Y, Z, Rot_exp_now, p, xout, yout)
 
-    # logging.debug("proj_out_all shape: {}".format(proj_out_all.shape))
     logging.debug("data shape: {}".format(data.shape))
-    logging.debug(
-        "mask shappe: {}".format(
-            torch.from_numpy(current_projection["window_mask"]).shape
-        )
-    )
-    aux_diff_poisson = torch.mul(
-        (torch.sqrt(proj_out_all) - torch.sqrt(torch.permute(data, (2, 0, 1)))),
-        torch.from_numpy(np.array(current_projection["window_mask"])),
-    )
-    # RSD: Had to reorder dimensions to match expected and actual broadcast. Optimise later
+
+    permuted_data = torch.permute(data, (2, 0, 1))
+    aux_diff_poisson = (
+        torch.sqrt(proj_out_all) - torch.sqrt(permuted_data)
+    ) * torch.from_numpy(np.array(current_projection["window_mask"]))
+
     logging.debug(f"aux_diff_poisson shape: {aux_diff_poisson.shape}")
     # RSD: Permute aux_diff_poisson
     aux_diff_poisson = torch.permute(
@@ -602,8 +596,10 @@ def array_interpolate(
 
     temp1 = torch.from_numpy(Tx[arg_0, arg_1, arg_2] * Ty[arg_0, arg_1, arg_2])
     temp2 = torch.from_numpy(Tx[arg_0, arg_1, arg_2] * (1 - Ty[arg_0, arg_1, arg_2]))
-    temp3 = torch.from_numpy(1 - Tx[arg_0, arg_1, arg_2] * Ty[arg_0, arg_1, arg_2])
-    temp4 = torch.from_numpy(1 - Tx[arg_0, arg_1, arg_2] * 1 - Ty[arg_0, arg_1, arg_2])
+    temp3 = torch.from_numpy((1 - Tx[arg_0, arg_1, arg_2]) * Ty[arg_0, arg_1, arg_2])
+    temp4 = torch.from_numpy(
+        (1 - Tx[arg_0, arg_1, arg_2]) * (1 - Ty[arg_0, arg_1, arg_2])
+    )
 
     logging.debug("indices shape: {}".format(indices.shape))
     logging.debug("tomo_obj_all shape: {}".format(tomo_obj_all.shape))
