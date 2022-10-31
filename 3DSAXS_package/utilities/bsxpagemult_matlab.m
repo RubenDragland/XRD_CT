@@ -1,7 +1,7 @@
 rng default
 
-A = double(randi([1 9],3,3,3) );
-B = double(randi([1 9],3,3,3) );
+A = double(randi([1 9],3,3,64) );
+B = double(randi([1 9],3,8) );
 times = 100000;
 
 
@@ -10,7 +10,7 @@ for ii = times
     R1 = pagemtimes(A,B);
 end
 toc
-display(R1);
+
 
 tic
 for ii = times
@@ -18,4 +18,7 @@ for ii = times
 end
 toc
 
-display(R2);
+if any(R1~=R2)
+    display(R1);
+    display(R2);
+end

@@ -33,7 +33,7 @@ function [E, grad_a, grad_theta_struct, grad_phi_struct ] = SAXS_AD_all_forward_
                 AD_grad_coeffs = gather(AD_grad_coeffs);
             end
             AD_grad_coeff = extractdata(AD_grad_coeffs); % RSD: No longer need for dlarrays
-            grad_a = grad_a + reshape(AD_grad_coeff, ny, nx, nz, numOfCoeffs);
+            grad_a = grad_a + reshape( permute(AD_grad_coeff, [3,2,1]), ny,nx,nz,numOfCoeffs); %reshape(AD_grad_coeff, ny, nx, nz, numOfCoeffs); % RSD: Change reshape when correct procedure has been found. Needs to be permuted!
         else
             [error_norm, ~, AD_grad_theta, AD_grad_phi] = dlfeval(@SAXS_AD_all_cost_function, theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels); %, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, numOfCoeffs, numOfvoxels);
         end %RSD: Use thilde ~ for unused variables. aux_diff_poisson and proj_out_all removed entirely. 

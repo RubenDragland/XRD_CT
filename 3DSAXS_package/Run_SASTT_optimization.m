@@ -150,10 +150,29 @@ else
     doing_q_resolved = false;
 end
 
-% Defining filenames for results
-sym_opt_filename = fullfile(p.optimization_output_path, sprintf('result_%s%s_symSAXS.mat', p.sample_name, p.add_name)) ;  %sprintf(fullfile('%s','result_%s%s_symSAXS.mat'), p.optimization_output_path, p.sample_name, p.add_name); 
-%FIXED PATH: A GOOD RULE OF THUMB SHOULD BE TO HAVE FULLFILE AS THE OUTMOST FUNCTION WHEN DEFINING A PATH.
-fprintf('filename: %s', sym_opt_filename);
+%% Run settings AD
+
+p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
+p.method = "bilinear";          % RSD: Choose method of interpolation.
+p.filter_2D = 3;                % RSD: The best filter.
+p.GPU = 0;
+p.python = 0; %RSD: Improve safety here.
+
+% Defining filenames for results. RSD: Moved down one cell to create
+% add_name based on mode
+if p.mode && p.GPU
+    p.add_name = "AD_GPU";
+elseif p.mode && p.python
+    p.add_name = "AD_python";
+elseif p.mode
+    p.add_name = "AD";
+else
+    p.add_name = "symbolic";
+end
+
+
+make_3Dmask = 0;
+
 
 %% Step 2.2 optimization of coefficients over the symmetric intensity: only a0
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -176,15 +195,13 @@ p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 
 p.itmax = 10; %20                % maximum number of iterations: about 20
 p.skip_projections = 1;         % = 1, for not skipping projections
-p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
-p.method = "bilinear";          % RSD: Choose method of interpolation.
-p.filter_2D = 3;                % RSD: The best filter.
-p.GPU = 0;
-p.python = 1;
 
-%if p.mode
-%    p.method = "nearest";        % RSD: Another safety net for method of interpolation.
-%end
+
+sym_opt_filename = fullfile(p.optimization_output_path, sprintf('result_%s%s_symSAXS.mat', p.sample_name, p.add_name)) ;  %sprintf(fullfile('%s','result_%s%s_symSAXS.mat'), p.optimization_output_path, p.sample_name, p.add_name); 
+%FIXED PATH: A GOOD RULE OF THUMB SHOULD BE TO HAVE FULLFILE AS THE OUTMOST FUNCTION WHEN DEFINING A PATH.
+fprintf('filename: %s', sym_opt_filename);
+
+
 
 p.avoid_wrapping=0;            % avoid wrapping over 2Pi
 
@@ -204,7 +221,7 @@ fprintf('Saving results in %s\n',p.save.output_filename)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % EDIT:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-make_3Dmask = 1; % 1 to create a 3D mask, 0 to see the symmetric intensity tomogram
+ % 1 to create a 3D mask, 0 to see the symmetric intensity tomogram
 mask.cut_off = []; % = [] for automatic detection of the mean value using Otsu threshold
 mask.diam_cylinder = []; % Diameter of a cylinder outside, = [] does not create the mask
 mask.gauss_filter = 1; % Apply a filter to the data to reduce noise
@@ -263,13 +280,23 @@ p.regularization_angle_coeff = 0; % mu for regularization of angle, needs to be 
 p.itmax = 20; %50; %30;           % maximum number of iterations: about 50
 p.skip_projections = 1; % = 1, for not skipping projections
 
-%RSD: Watch out for these settings. 
-p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
-p.method = "bilinear";          % RSD: Choose method of interpolation.
-
-%if p.mode
-%    p.method = "nearest";        % RSD: Another safety net for method of interpolation.
-%end
+% %RSD: Watch out for these settings. 
+% p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
+% p.method = "bilinear";          % RSD: Choose method of interpolation.
+% p.python = 0;
+% p.GPU = 0;
+% 
+% % Defining filenames for results. RSD: Moved down one cell to create
+% % add_name based on mode
+% if p.mode && p.GPU
+%     p.add_name = "AD_GPU";
+% elseif p.mode && p.python
+%     p.add_name = "AD_python";
+% elseif p.mode
+%     p.add_name = "AD";
+% else
+%     p.add_name = "symbolic";
+% end
 
 p.avoid_wrapping = 1;   % Avoid wrapping of the angle (to keep angle between 0 and 2pi) (true or false)
 
@@ -326,11 +353,25 @@ p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 p.itmax = 20; %20;            % maximum number of iterations: about 20
 p.skip_projections = 1;  % = 1, for not skipping projections
 
-%RSD: Watch out for these settings. 
-p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
-p.method = "bilinear";          % RSD: Choose method of interpolation.
+% %RSD: Watch out for these settings. 
+% p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
+% p.method = "bilinear";          % RSD: Choose method of interpolation.
+% p.python = 0;
+% p.GPU = 0;
+% 
+% % Defining filenames for results. RSD: Moved down one cell to create
+% % add_name based on mode
+% if p.mode && p.GPU
+%     p.add_name = "AD_GPU";
+% elseif p.mode && p.python
+%     p.add_name = "AD_python";
+% elseif p.mode
+%     p.add_name = "AD";
+% else
+%     p.add_name = "symbolic";
+% end
 
-p.avoid_wrapping = 0;    % avoid wrapping over 2Pi of the angle
+p.avoid_wrapping = 0;    % avoid wrapping over 2Pi of the angle RSD: What should be chosen?
 
 coef_a1const_filename = sprintf('%s/result_%s_q%d-%d_coef_a1const_%s.mat',p.optimization_output_path, ...
     p.sample_name, projection(1).par.r_sum{1}(1),  projection(1).par.r_sum{1}(end), p.add_name);
@@ -406,9 +447,23 @@ p.kernel=kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 p.itmax = 50; %50;                          % maximum number of iterations: about 50-100
 p.skip_projections = 1;                % = 1, for not skipping projections
 
-%RSD: Watch out for these settings. 
-p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
-p.method = "bilinear";          % RSD: Choose method of interpolation.
+% %RSD: Watch out for these settings. 
+% p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
+% p.method = "bilinear";          % RSD: Choose method of interpolation.
+% p.python = 0;
+% p.GPU = 0;
+% 
+% % Defining filenames for results. RSD: Moved down one cell to create
+% % add_name based on mode
+% if p.mode && p.GPU
+%     p.add_name = "AD_GPU";
+% elseif p.mode && p.python
+%     p.add_name = "AD_python";
+% elseif p.mode
+%     p.add_name = "AD";
+% else
+%     p.add_name = "symbolic";
+% end
 
 p.avoid_wrapping = 1;     % avoid wrapping over 2Pi of the angle
 

@@ -218,27 +218,39 @@ if find_grad && p.python
     py.importlib.import_module("forward_backward_AD");
     
     for ii = 1:length(projection)
-    %parfor ii = 1:length(projection)
+    %parfor ii = 1:length(projection) % RSD: Set variables before used.
+    %Cannot use parfoor. Make the python version entirely batched instead. 
 
         theta_struct_it = py.numpy.array(theta_struct);
         phi_struct_it = py.numpy.array(phi_struct);
         a_temp_it = py.numpy.array(a_temp);
-        X = py.numpy.array(X);
-        Y = py.numpy.array(Y);
-        Z = py.numpy.array(Z);
-        unit_q_beamline = py.numpy.array(unit_q_beamline);
-        Ylm_coef = py.numpy.array(Ylm_coef);
+        Xi = py.numpy.array(X);
+        Yi = py.numpy.array(Y);
+        Zi = py.numpy.array(Z);
+        unit_q_beamline_i = py.numpy.array(unit_q_beamline);
+        Ylm_coef_i = py.numpy.array(Ylm_coef);
 
         current_projection = projection(ii);
 
         %[error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = py.forward_backward_AD.main(pyargs("theta_struct_it",theta_struct_it, "phi_struct_it", phi_struct_it, "a_temp_it", a_temp_it,"ny", ny,"nx", nx, "nz", nz, "numOfsegments", numOfsegments,"current_projection", current_projection, "p", p, "X", X, "Y", Y,"Z", Z, "numOfpixels", numOfpixels, "unit_q_beamline", unit_q_beamline, "Ylm_coef", Ylm_coef, "find_coefficients", find_coefficients, "find_orientation", find_orientation, "numOfCoeffs", numOfCoeffs, "numOfvoxels", numOfvoxels) ); %py.forward_backward_AD.main(theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, find_orientation, numOfCoeffs, numOfvoxels);
-        res = py.forward_backward_AD.print_test("abc");
+        %res = py.forward_backward_AD.print_test("abc");
         %[error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = py.forward_backward_AD.main(theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, find_orientation, numOfCoeffs, numOfvoxels);
-        res =  py.forward_backward_AD.main(theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, find_orientation, numOfCoeffs, numOfvoxels) ;
+        imeres =  py.forward_backward_AD.main(theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, Xi, Yi, Zi, numOfpixels, unit_q_beamline_i, Ylm_coef_i, find_coefficients, find_orientation, numOfCoeffs, numOfvoxels) ;
+        
+        %[error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = [imeres{1}, imeres{2}, imeres{3}, imeres{4}];
+        
+        error_norm = imeres{1};
         E = E + error_norm;
-        grad_a = grad_a + reshape(AD_grad_coeff, ny, nx, nz, numOfCoeffs);
-        grad_theta_struct = grad_theta_struct + reshape(AD_grad_theta, ny, nx, nz);
-        grad_phi_struct = grad_phi_struct + reshape(AD_grad_phi, ny,nx,nz);
+        if ~isempty( double(imeres{2}) )
+            AD_grad_coeff = double(imeres{2});
+            grad_a = grad_a + reshape(AD_grad_coeff, ny, nx, nz, numOfCoeffs); % RSD: Check this!
+        end
+        if ~isempty( double(imeres{3}) )
+            AD_grad_theta = double( imeres{3});
+            AD_grad_phi = double (imeres{4} );
+            grad_theta_struct = grad_theta_struct + reshape(AD_grad_theta, ny, nx, nz);
+            grad_phi_struct = grad_phi_struct + reshape(AD_grad_phi, ny,nx,nz);
+        end
 
     end
 
@@ -357,8 +369,8 @@ else
                 
                 %RSD: Need to reshape
                 AD_grad_coeff = extractdata(AD_grad_coeff); % RSD: No longer need for dlarrays
-                grad_a = grad_a + reshape(AD_grad_coeff, ny, nx, nz, numOfCoeffs); %RSD: Lacks number of coeffs! Change but remember the change in case of error. 
-            end
+                grad_a = grad_a + reshape( permute(AD_grad_coeff, [3,2,1]), ny,nx,nz,numOfCoeffs); %permute( reshape(AD_grad_coeff, ny, nx, nz, numOfCoeffs), [ %reshape(AD_grad_coeff, ny, nx, nz, numOfCoeffs); %RSD: MATLAB reshape fucking shit...
+            end %RSD: Since a_temp has shape 1xnumCoeffsx(nynznz), permutation before reshape is necessary. 
             Ylm = []; %#ok<*NASGU> % free up memory
         end
     end
