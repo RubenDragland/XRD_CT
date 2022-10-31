@@ -48,12 +48,17 @@ def lab_rotation_given_axis_n(n):
         raise ValueError("n must be 0, 1 or 2.")
 
 
-def derive_THETA(A, B, theta_op, phi_op, n):
+def derive_SIN_THETA(A, B, theta_op, phi_op, n):
     # Derive the Theta function
     alpha, beta = lab_rotation_given_axis_n(n)
 
     # Rotation matrices
-    R_n_exp = torch.tensor([[torch.cos]])
+    COS_THETA = torch.sin(theta_op) * torch.cos(phi_op) * torch.cos(beta) + torch.cos(
+        theta_op
+    ) * torch.sin(beta)
+
+    #
+    return
 
 
 def new_cost_function(A, B, theta, phi, I_n, n):
@@ -155,7 +160,7 @@ Theta = torch.rand((3, 2, 2, 2))
 
 AD_grad_A = torch.zeros((2, 2, 2))
 AD_grad_B = torch.zeros((2, 2, 2))
-for n in range(2, 3):  # I_n.shape[0]):
+for n in range(0, 3):  # I_n.shape[0]):
     forward = new_cost_function(A, B, Theta[n], 0, I_n[n], n)
     forward.backward()
     AD_grad_A += A.grad
@@ -166,7 +171,7 @@ print("\n")
 
 SYM_grad_A = torch.zeros((2, 2, 2))
 SYM_grad_B = torch.zeros((2, 2, 2))
-for n in range(2, 3):  # I_n.shape[0]):
+for n in range(0, 3):  # I_n.shape[0]):
     SYM_grad_A += new_model_grad_A(A, B, Theta[n], I_n[n], n)
     SYM_grad_B += new_model_grad_B(A, B, Theta[n], I_n[n], n)
 
