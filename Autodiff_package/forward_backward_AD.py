@@ -364,7 +364,7 @@ def SAXS_AD_cost_function(
     )  # RSD: OK? Bit unnecessary given that next is a sum over dimensions.
     error_norm = (
         2 * torch.sum(aux_diff_poisson**2, dim=(2, 1, 0)) / numOfpixels
-    )  # Check dims
+    )  # Check dims. Dim necessary here?
 
     error_norm.backward()  # Backpropate gradient
 
@@ -393,6 +393,7 @@ def SAXS_AD_cost_function(
 
 def page_multiply(A: torch.tensor, B: torch.tensor):
     # Use Einstein sum in different cases
+    # Needs improvements for batch, orientation, and more coefficients
 
     # assert len(A.size()) == 3, "A is not a 3D tensor"
     # assert len(B.size()) <= len(A.size()), "B is not a 3D or 2D tensor"
