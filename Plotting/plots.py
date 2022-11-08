@@ -28,7 +28,15 @@ from matplotlib.colors import ListedColormap, LinearSegmentedColormap, TwoSlopeN
 
 plt.style.use(["tableau-colorblind10", "seaborn-paper"])
 mpl.rcParams["axes.prop_cycle"] = cycler(
-    color=["#F05039", "#E57A77", "#EEBAB4", "#1F449C", "#3D65A5", "#7CA1CC", "#A8B6CC"]
+    color=[
+        "#3D65A5",
+        "#E57A77",
+        "#7CA1CC",
+        "#F05039",
+        "#1F449C",
+        "#A8B6CC",
+        "#EEBAB4",
+    ]  # ["#F05039", "#E57A77", "#EEBAB4", "#1F449C", "#3D65A5", "#7CA1CC", "#A8B6CC"]
 ) + cycler(
     linestyle=["-", "--", "-.", ":", "-", "--", "-."]
 )  # From: https://www.datylon.com/blog/data-visualization-for-colorblind-readers  and https://ranocha.de/blog/colors/ , respectively
@@ -53,7 +61,15 @@ mpl.rcParams["axes.labelsize"] = 12
 mpl.rcParams["figure.figsize"] = (8, 6)
 mpl.rcParams["figure.constrained_layout.use"] = True
 mpl.rcParams["axes.formatter.use_mathtext"] = True
-# mpl.rcParams['text.usetex'] = True # Use Latex
+mpl.rcParams["text.usetex"] = True  # Use Latex
+mpl.rcParams.update(
+    {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.serif": ["Palatino"],
+    }
+)
+# Try this to get font similar to latex
 """
 mpl.rcParams['legend.loc'] = "upper_right" # Suggestion
 mpl.rcParams['']
@@ -62,6 +78,25 @@ mpl.rcParams['']
 
 
 # Borrow some code to create colormap from color palette https://towardsdatascience.com/beautiful-custom-colormaps-with-matplotlib-5bab3d1f0e72 and https://www.delftstack.com/howto/matplotlib/custom-colormap-using-python-matplotlib/#use-rgba-values-to-create-custom-listed-colormap-in-python
+
+
+def plot_tex():
+    t = np.linspace(0.0, 1.0, 100)
+    s = np.cos(4 * np.pi * t) + 2
+
+    fig, ax = plt.subplots(figsize=(6, 4), tight_layout=True)
+    ax.plot(t, s)
+
+    ax.set_xlabel(r"\textbf{time (s)}")
+    ax.set_ylabel("\\textit{Velocity (\N{DEGREE SIGN}/sec)}", fontsize=16)
+    ax.set_title(
+        r"\TeX\ is Number $\displaystyle\sum_{n=1}^\infty" r"\frac{-e^{i\pi}}{2^n}$!",
+        fontsize=16,
+        color="r",
+    )
+
+    plt.show()
+    return
 
 
 def hex_to_rgb(value):
@@ -115,7 +150,7 @@ def get_continuous_cmap(hex_list, float_list=None):
 # Diverging by using divnorm, Use TwoSlopeNorm to define min, center and max of data. Add this together with the colormap to the contourf plot.
 
 XRDCT_palette_cmp = get_continuous_cmap(
-    ["#F05039", "#E57A77", "#EEBAB4", "#1F449C", "#3D65A5", "#7CA1CC", "#A8B6CC"]
+    ["#1F449C", "#3D65A5", "#7CA1CC", "#A8B6CC", "#EEBAB4", "#E57A77", "#F05039"]
     # Might be a good choice. Need consultants # ["#F05039", "#E57A77", "#EEBAB4", "#1F449C", "#3D65A5", "#7CA1CC", "#A8B6CC"]
     # # [     "#E57A77","#EEBAB4","#7CA1CC",]
 )
@@ -222,8 +257,9 @@ def plot_3D_GD(func, x, y, first=True, fig=None, ax=None):
     X, Y = np.meshgrid(x, y)
     X, Y = torch.tensor(X), torch.tensor(Y)
     Z = func(X, Y)
+    alt_cmap = XRDCT_palette_cmp
 
-    ax.plot_surface(X, Y, Z, alpha=0.8, cmap="Reds")  # [u"#F05039"] )
+    ax.plot_surface(X, Y, Z, alpha=0.8, cmap=alt_cmap)  # cmap="Reds")  # [u"#F05039"] )
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_zticks([])
@@ -232,10 +268,13 @@ def plot_3D_GD(func, x, y, first=True, fig=None, ax=None):
     return fig, ax
 
 
-def animate_3D_GD(func, x, y, init_pos, frames=100, step=0.1):
+def animate_3D_GD(
+    func, x, y, init_pos, frames=100, step=0.1, animate=False, filename="GD_3D"
+):
 
     fig, ax = plot_3D_GD(func, x, y)
-    camera = Camera(fig)
+    if animate:
+        camera = Camera(fig)
     traj = np.zeros((frames, 2))
     traj[0] = init_pos
     ax.plot(
@@ -246,35 +285,155 @@ def animate_3D_GD(func, x, y, init_pos, frames=100, step=0.1):
         c="#1F449C",
         markersize=14,
     )
-
-    camera.snap()
+    if animate:
+        camera.snap()
 
     for epoch in range(frames - 1):
 
         x1, x2 = traj[epoch]
         input = torch.tensor(np.array([x1, x2]), requires_grad=True)
-        print(input)
         err = func(input[0], input[-1])
         err.backward()
         grad = input.grad
 
         traj[epoch + 1] = traj[epoch] - step * grad.numpy()
+
+        if animate:
+            fig, ax = plot_3D_GD(func, x, y, first=False, fig=fig, ax=ax)
+            ax.plot(
+                traj[epoch + 1, 0],
+                traj[epoch + 1, -1],
+                func(
+                    torch.tensor(traj[epoch + 1, 0]), torch.tensor(traj[epoch + 1, -1])
+                ),
+                "o",
+                c="#1F449C",
+                markersize=14,
+            )
+            ax.plot(traj[: epoch + 2, 0], traj[: epoch + 2, -1], 0, c="#1F449C")
+
+            camera.snap()
+
+    if animate:
+        animation = camera.animate(interval=50, repeat=True)
+        animation.save(f"{filename}.mp4")
+    else:
+
         fig, ax = plot_3D_GD(func, x, y, first=False, fig=fig, ax=ax)
         ax.plot(
-            traj[epoch + 1, 0],
-            traj[epoch + 1, -1],
-            func(torch.tensor(traj[epoch + 1, 0]), torch.tensor(traj[epoch + 1, -1])),
+            traj[-1, 0],
+            traj[-1, -1],
+            func(torch.tensor(traj[-1, 0]), torch.tensor(traj[-1, -1])),
             "o",
-            c="#1F449C",
+            c="#A8B6CC",
             markersize=14,
         )
-        ax.plot(traj[: epoch + 2, 0], traj[: epoch + 2, -1], 0, c="#1F449C")
+        ax.plot(traj[:, 0], traj[:, -1], 0, c="#A8B6CC")
+        fig.savefig(f"{filename}.svg")
 
+    return
+
+
+def animate_3D_CGD(
+    func,
+    x,
+    y,
+    init_pos,
+    frames=100,
+    animate=False,
+    interval=50,
+    max_step=2,
+    linesearches=1000,
+    filename="CGD_3D",
+):
+
+    fig, ax = plot_3D_GD(func, x, y)
+    if animate:
+        camera = Camera(fig)
+    traj = np.zeros((frames, 2))
+    traj[0] = init_pos
+    ax.plot(
+        traj[0, 0],
+        traj[0, -1],
+        func(torch.tensor(traj[0, 0]), torch.tensor(traj[0, -1])),
+        "o",
+        c="#1F449C",
+        markersize=14,
+    )
+    if animate:
         camera.snap()
 
-    animation = camera.animate(interval=50, repeat=True)
-    animation.save(f"GD_test.mp4")
-    return
+    alphas = np.linspace(1e-6, max_step, linesearches)
+    x1, x2 = traj[0]
+    for epoch in range(frames - 1):
+
+        input = torch.tensor(np.array([x1, x2]), requires_grad=True)
+        err = func(input[0], input[-1])
+        err.backward()
+        grad = input.grad.numpy()
+
+        if epoch == 0:
+            d = -grad
+        else:
+            beta = np.max(
+                np.dot(grad.T, grad - grad_old) / np.dot(grad_old.T, grad_old), 0
+            )
+            # if np.any(beta) < 0:
+            #     beta = 0
+            d = -grad + beta * d_old
+
+        grad_old = grad
+        func_eval_old = 1000
+        next_alpha = alphas[0]
+        for i, a in enumerate(alphas):
+            input = torch.tensor(
+                np.array([x1 + a * d[0], x2 + a * d[-1]]), requires_grad=False
+            )
+            func_eval = func(input[0], input[-1])
+
+            if func_eval <= func_eval_old:
+                func_eval_old = func_eval
+                next_alpha = a
+
+        if next_alpha == alphas[0]:
+            print(f"Converged in {epoch +1} steps")
+            break
+
+        traj[epoch + 1] = traj[epoch] + next_alpha * d
+        d_old = d
+        x1, x2 = traj[epoch + 1]
+
+        if animate:
+            fig, ax = plot_3D_GD(func, x, y, first=False, fig=fig, ax=ax)
+            ax.plot(
+                traj[epoch + 1, 0],
+                traj[epoch + 1, -1],
+                func(
+                    torch.tensor(traj[epoch + 1, 0]), torch.tensor(traj[epoch + 1, -1])
+                ),
+                "o",
+                c="#1F449C",
+                markersize=14,
+            )
+            ax.plot(traj[: epoch + 2, 0], traj[: epoch + 2, -1], 0, c="#1F449C")
+
+            camera.snap()
+    if animate:
+        animation = camera.animate(interval=interval, repeat=True)
+        animation.save(f"{filename}.mp4")
+    else:
+
+        fig, ax = plot_3D_GD(func, x, y, first=False, fig=fig, ax=ax)
+        ax.plot(
+            traj[-1, 0],
+            traj[-1, -1],
+            func(torch.tensor(traj[-1, 0]), torch.tensor(traj[-1, -1])),
+            "o",
+            c="#A8B6CC",
+            markersize=14,
+        )
+        ax.plot(traj[:, 0], traj[:, -1], 0, c="#A8B6CC")
+        fig.savefig(f"{filename}.svg")
 
 
 # plt.rc("text", usetex=True)
@@ -296,7 +455,7 @@ def plot_SH(ax, l=0, m=0):
     )
 
     Y = sph_harm(0, l, phi, theta)
-    print(Y)
+    # print(Y)
     Yx, Yy, Yz = np.abs(Y) * xyz
 
     cmap = plt.cm.ScalarMappable(
@@ -321,6 +480,354 @@ def plot_SH(ax, l=0, m=0):
     ax.set_ylim(-ax_lim, ax_lim)
     ax.set_zlim(-ax_lim, ax_lim)
     ax.axis("off")
+
+
+def plot_exp_sin(ax, A, B):
+
+    theta = np.linspace(0, np.pi, 100)
+    phi = np.linspace(0, 2 * np.pi, 100)
+    # Create a 2-D meshgrid of (theta, phi) angles.
+    theta, phi = np.meshgrid(theta, phi)
+    # Calculate the Cartesian coordinates of each point in the mesh.
+    xyz = np.array(
+        [np.sin(theta) * np.sin(phi), np.sin(theta) * np.cos(phi), np.cos(theta)]
+    )
+    # COS_2_THETA = np.cos(np.sin(theta) * np.sin(phi)) ** 2
+    # SIN_2_THETA = (
+    #     1 - np.cos(np.sin(theta) * np.cos(phi) ) ** 2
+    # )
+    F = A**2 * np.exp(-B * np.sin(theta) ** 2)
+
+    Fx, Fy, Fz = F * xyz
+
+    cmap = plt.cm.ScalarMappable(cmap=XRDCT_palette_cmp)
+    cmap.set_clim(-0.5, 0.5)
+    divnorm = TwoSlopeNorm(vmin=-0.5, vcenter=0, vmax=0.5)
+
+    ax.plot_surface(
+        Fx, Fy, Fz, facecolors=cmap.to_rgba(F), norm=divnorm, rstride=2, cstride=2
+    )
+
+    # Draw a set of x, y, z axes for reference.
+    ax_lim = 0.5
+    ax.plot([-ax_lim, ax_lim], [0, 0], [0, 0], c="0.5", lw=1, zorder=10)
+    ax.plot([0, 0], [-ax_lim, ax_lim], [0, 0], c="0.5", lw=1, zorder=10)
+    ax.plot([0, 0], [0, 0], [-ax_lim, ax_lim], c="0.5", lw=1, zorder=10)
+    # Set the Axes limits and title, turn off the Axes frame.
+    ax.set_title(r"$F_{{{},{}}}$".format(A, B))
+    ax_lim = 0.5
+    ax.set_xlim(-ax_lim, ax_lim)
+    ax.set_ylim(-ax_lim, ax_lim)
+    ax.set_zlim(-ax_lim, ax_lim)
+    ax.axis("off")
+
+
+def plot_err_hist(
+    fasit_rec,
+    AD_rec,
+    sym_rec,
+    title="",
+    bins=100,
+    limits=(0, 6.5),
+    stacked=True,
+    xscale="linear",
+):
+
+    metric = [AD_rec, sym_rec]
+    subtitles = ["Automatic", "Symbolic"]
+    legends = ["a0", "a2", "a4", "a6", "\u03B8 (\u03C0)", "\u03C6 (\u03C0)"]
+
+    fasit_params = [
+        fasit_rec.get_1D_array(fasit_rec.params[p])
+        for p in range(len(fasit_rec.params))
+    ]
+
+    fig, ax = plt.subplots(2, 1, sharey=True, sharex=True)
+    for i in range(len(ax)):
+
+        compare_params = [
+            metric[i].get_1D_array(metric[i].params[p])
+            for p in range(len(metric[i].params))
+        ]
+
+        ax[i].set_xlabel("Abs error (wrt. \u03C0)")
+        ax[i].set_ylabel("Counts")
+        ax[i].set_xscale(xscale)
+        ax[i].set_title(subtitles[i])
+
+        err = np.zeros((len(fasit_params), len(fasit_params[0]))).T
+
+        for j in range(len(fasit_params)):
+
+            if j > 3:
+                err1 = (
+                    np.abs(fasit_params[j] % np.pi - compare_params[j] % np.pi) / np.pi,
+                )
+                err2 = (
+                    np.abs(
+                        np.pi
+                        - np.abs(fasit_params[j] % np.pi - (compare_params[j] % np.pi))
+                    )
+                    / np.pi
+                )
+
+                err[:, j] = np.minimum(err1, err2)
+                assert np.all(err[:, j] <= 0.5)
+
+            else:
+                err[:, j] = np.abs(fasit_params[j] - compare_params[j])
+
+        #     ax[i].hist(
+        #         err,
+        #         label=legends[j],
+        #         alpha=0.69,
+        #         bins=bins,
+        #         range=limits,
+        #         stacked=stacked,
+        #         histtype="bar",
+        #     )
+
+        ax[i].hist(
+            err, label=legends, alpha=0.69, bins=bins, range=limits, stacked=stacked
+        )
+
+        ax[i].legend()
+
+    fig.suptitle(title)
+    fig.savefig(title + ".svg")
+    plt.show()
+    return
+
+
+def plot_result_heatmap(tt_result_AD, tt_result_symbolic, title, slice=None):
+
+    ylabels = ["a0", "a2", "a4", "a6", "\u03B8", "\u03C6"]
+    if slice is None:
+        x_length = len(tt_result_AD)
+        slice = [0, x_length]
+    else:
+        x_length = len(
+            tt_result_AD.get_1D_array(tt_result_AD.a0)[slice[0] : slice[-1]]
+        )  # len(tt_result_AD.a0[slice])
+
+    num_coeffs = 4
+
+    Ad_a = np.vstack(
+        (
+            np.ndarray.flatten(tt_result_AD.a0),
+            np.ndarray.flatten(tt_result_AD.a2),
+            np.ndarray.flatten(tt_result_AD.a4),
+            np.ndarray.flatten(tt_result_AD.a6),
+        )
+    )  # np.ndarray.flatten(tt_result_AD.a)
+    Ad_theta = np.ndarray.flatten(tt_result_AD.theta)
+    Ad_phi = np.ndarray.flatten(tt_result_AD.phi)
+
+    # Sym_a = np.ndarray.flatten(tt_result_symbolic.a)
+    Sym_a = np.vstack(
+        (
+            np.ndarray.flatten(tt_result_symbolic.a0),
+            np.ndarray.flatten(tt_result_symbolic.a2),
+            np.ndarray.flatten(tt_result_symbolic.a4),
+            np.ndarray.flatten(tt_result_symbolic.a6),
+        )
+    )
+    Sym_theta = np.ndarray.flatten(tt_result_symbolic.theta)
+    Sym_phi = np.ndarray.flatten(tt_result_symbolic.phi)
+
+    err_a = (np.abs(Ad_a - Sym_a) / np.abs(Sym_a))[:, slice[0] : slice[1]]
+    err_theta = (np.abs(Ad_theta % np.pi - Sym_theta % np.pi) / np.abs(np.pi))[
+        slice[0] : slice[1]
+    ]
+    err_theta_2 = np.abs(1 - err_theta)
+    err_theta = np.minimum(err_theta, err_theta_2)
+
+    err_phi = (np.abs(Ad_phi % np.pi - Sym_phi % np.pi) / np.abs(np.pi))[
+        slice[0] : slice[1]
+    ]
+    err_phi_2 = np.abs(1 - err_phi)
+    err_phi = np.minimum(err_phi, err_phi_2)
+
+    img = np.vstack(
+        (err_a[0, :], err_a[1, :], err_a[2, :], err_a[3, :], err_theta, err_phi)
+    )  # Bit manual, but but
+
+    fig, ax = plt.subplots(figsize=(20, 8))
+    ax.imshow(img, cmap=XRDCT_palette_cmp, vmin=0, vmax=1)
+    ax.set_yticks(np.arange(len(ylabels)), labels=ylabels)
+    ax.set_xlabel("Voxel number")
+
+    for i in range(x_length):
+        for j in range(num_coeffs):
+            text = ax.text(
+                i,
+                j,
+                f"{err_a[j, i]:.2e}",
+                ha="center",
+                va="center",
+                color="w",
+            )
+        text = ax.text(
+            i, j + 1, f"{err_theta[i]:.2e}", ha="center", va="center", color="w"
+        )
+        text = ax.text(
+            i, j + 2, f"{err_phi[i]:.2e}", ha="center", va="center", color="w"
+        )
+    # cbar = ax.figure.colorbar(img, ax=ax, location="bottom")
+    # cbar.ax.set_ylabel("Relative error", rotation=-90, va="bottom")
+    # ax.figure.colorbar(img, ax=ax, orientation="horizontal")
+    ax.set_title(title)
+    fig.savefig(title + ".svg")
+    plt.show()
+
+
+def plot_coeffs_distribution(
+    fasit_rec, AD_rec, sym_rec, title="", bins=30, limits=(0, 1)
+):
+    fasit_params = [
+        fasit_rec.get_1D_array(fasit_rec.params[p])
+        for p in range(len(fasit_rec.params))
+    ]
+    AD_params = [
+        AD_rec.get_1D_array(AD_rec.params[p]) for p in range(len(AD_rec.params))
+    ]
+    sym_params = [
+        sym_rec.get_1D_array(sym_rec.params[p]) for p in range(len(sym_rec.params))
+    ]
+
+    titles = ["a0", "a2", "a4", "a6", "\u03B8", "\u03C6"]
+
+    fig, axs = plt.subplots(2, 2)
+    for i, ax in enumerate(np.reshape(axs, -1)):
+
+        AD_mean = np.mean(AD_params[i])
+        AD_std = np.std(AD_params[i])
+        sym_mean = np.mean(sym_params[i])
+        sym_std = np.std(sym_params[i])
+
+        limits_AD = (AD_mean - 5 * AD_std, AD_mean + 3 * AD_std)
+        limits_sym = (sym_mean - 5 * sym_std, sym_mean + 3 * sym_std)
+        limits = (min(limits_AD[0], limits_sym[0]), max(limits_AD[1], limits_sym[1]))
+
+        ax.set_xlabel("Value")
+        ax.set_ylabel("Counts")
+        ax.set_title(titles[i])
+        ax.hist(
+            fasit_params[i],
+            label="Solution",
+            alpha=0.69,
+            bins=bins,
+            range=limits,
+            # stacked=True,
+        )
+        ax.hist(
+            AD_params[i],
+            label="Automatic",
+            alpha=0.69,
+            bins=bins,
+            range=limits,
+            # stacked=True,
+        )
+        ax.hist(
+            sym_params[i],
+            label="Symbolic",
+            alpha=0.69,
+            bins=bins,
+            range=limits,
+            # stacked=True,
+        )
+        ax.legend(loc="upper left")
+
+    fig.suptitle(title)
+    fig.savefig(title + ".svg")
+    plt.show()
+    return
+
+
+def plot_angles_distribution(
+    fasit_rec, AD_rec, sym_rec, title="", bins=30, limits=(0, np.pi)
+):
+
+    fasit_params = [
+        fasit_rec.get_1D_array(fasit_rec.params[p])
+        for p in range(len(fasit_rec.params))
+    ]
+    AD_params = [
+        AD_rec.get_1D_array(AD_rec.params[p]) for p in range(len(AD_rec.params))
+    ]
+    sym_params = [
+        sym_rec.get_1D_array(sym_rec.params[p]) for p in range(len(sym_rec.params))
+    ]
+
+    titles = ["a0", "a2", "a4", "a6", "\u03B8", "\u03C6"]
+
+    fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+    for i, ax in enumerate(np.reshape(axs, -1)):
+        ax.set_xticks(np.arange(0, 5 * np.pi / 4, np.pi / 4))
+        ax.set_xticklabels(["0", "1/4", "1/2", "3/4", "1"])
+
+        ax.set_xlabel("Value [\u03C0]")
+        ax.set_ylabel("Counts")
+        ax.set_title(titles[i + 4])
+        ax.hist(
+            fasit_params[i + 4] % np.pi,
+            label="Solution",
+            alpha=0.69,
+            bins=bins,
+            range=limits,
+            # stacked=True,
+        )
+        ax.hist(
+            AD_params[i + 4] % np.pi,
+            label="Automatic",
+            alpha=0.69,
+            bins=bins,
+            range=limits,
+            # stacked=True,
+        )
+        ax.hist(
+            sym_params[i + 4] % np.pi,
+            label="Symbolic",
+            alpha=0.69,
+            bins=bins,
+            range=limits,
+            # stacked=True,
+        )
+        ax.legend(loc="upper left")
+
+    fig.suptitle(title)
+    fig.savefig(title + ".svg")
+    plt.show()
+    return
+
+
+def plot_convergence_curve(AD_rec, sym_rec, title="", scale="linear"):
+
+    x1 = np.arange(1, len(AD_rec.error_data) + 1)
+    x2 = np.arange(1, len(sym_rec.error_data) + 1)
+    fig, ax = plt.subplots()
+    ax.plot(
+        x1, AD_rec.error_data, label=f"Automatic {np.float64(AD_rec.timing_data):.1f} s"
+    )
+    ax.plot(
+        x2,
+        sym_rec.error_data,
+        label=f"Symbolic {np.float64(sym_rec.timing_data):.1f} s",
+    )
+    ax.legend()
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel("Projection Residual")
+    ax.set_title(title)
+    ax.set_xscale(scale)
+    ax.set_yscale(scale)
+    fig.savefig(title + ".svg")
+    plt.show()
+    return
+
+
+def plot_tt_3D_quiver(tt_result):
+
+    return
 
 
 def plot_debugging_coeffs(mat_paths: list, titles: list, normalise=False):
@@ -397,73 +904,4 @@ def plot_debugging_orientations(mat_paths: list, titles: list, shape):
         ax.legend()
 
     plt.show()
-    return
-
-
-def plot_result_heatmap(tt_result_AD, tt_result_symbolic, title):
-
-    ylabels = ["a0", "a2", "a4", "a6", "\u03B8", "\u03C6"]
-    x_length = len(tt_result_AD)
-    num_coeffs = 4
-
-    Ad_a = np.vstack(
-        (
-            np.ndarray.flatten(tt_result_AD.a0),
-            np.ndarray.flatten(tt_result_AD.a2),
-            np.ndarray.flatten(tt_result_AD.a4),
-            np.ndarray.flatten(tt_result_AD.a6),
-        )
-    )  # np.ndarray.flatten(tt_result_AD.a)
-    Ad_theta = np.ndarray.flatten(tt_result_AD.theta)
-    Ad_phi = np.ndarray.flatten(tt_result_AD.phi)
-
-    # Sym_a = np.ndarray.flatten(tt_result_symbolic.a)
-    Sym_a = np.vstack(
-        (
-            np.ndarray.flatten(tt_result_symbolic.a0),
-            np.ndarray.flatten(tt_result_symbolic.a2),
-            np.ndarray.flatten(tt_result_symbolic.a4),
-            np.ndarray.flatten(tt_result_symbolic.a6),
-        )
-    )
-    Sym_theta = np.ndarray.flatten(tt_result_symbolic.theta)
-    Sym_phi = np.ndarray.flatten(tt_result_symbolic.phi)
-
-    err_a = np.abs(Ad_a - Sym_a) / np.abs(Sym_a + 1e-10)
-    err_theta = np.abs(Ad_theta - Sym_theta) / np.abs(Sym_theta + 1e-10)
-    err_phi = np.abs(Ad_phi - Sym_phi) / np.abs(Sym_phi + 1e-10)
-    print(Ad_a.shape)
-    img = np.vstack(
-        (err_a[0, :], err_a[1, :], err_a[2, :], err_a[3, :], err_theta, err_phi)
-    )  # Bit manual, but but
-
-    fig, ax = plt.subplots(figsize=(20, 8))
-    ax.imshow(img, cmap=XRDCT_palette_cmp, vmin=0, vmax=2)
-    ax.set_yticks(np.arange(len(ylabels)), labels=ylabels)
-
-    for i in range(x_length):
-        for j in range(num_coeffs):
-            text = ax.text(
-                i,
-                j,
-                f"{err_a[j, i]:.2f}",
-                ha="center",
-                va="center",
-                color="w",
-            )
-        text = ax.text(
-            i, j + 1, f"{err_theta[i]:.2f}", ha="center", va="center", color="w"
-        )
-        text = ax.text(
-            i, j + 2, f"{err_phi[i]:.2f}", ha="center", va="center", color="w"
-        )
-    # cbar = ax.figure.colorbar(img, ax=ax, location="bottom")
-    # cbar.ax.set_ylabel("Relative error", rotation=-90, va="bottom")
-    ax.figure.colorbar(img, ax=ax, orientation="horizontal")
-    ax.set_title(title)
-    plt.show()
-
-
-def plot_tt_3D_quiver(tt_result):
-
     return
