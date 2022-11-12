@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import logging
 import scipy.io
+import time
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -114,7 +115,6 @@ def format_matlab_input(
     # RSD: Unsure on effect of reshape. Might be able to remove. Yes can be removed.
     theta_struct_it = torch.tensor(theta_struct_it.reshape(theta_struct_it.size))
     phi_struct_it = torch.tensor(phi_struct_it.reshape(phi_struct_it.size))
-    # a_temp_it = torch.tensor(a_temp_it.reshape(a_temp_it.size))
     a_temp_it = torch.tensor(a_temp_it)
     Ylm_coef = torch.tensor(Ylm_coef.reshape(Ylm_coef.size))
 
@@ -333,9 +333,10 @@ def SAXS_AD_cost_function(
 
     # RSD: Python vs Matlab indexing
     data_synt_vol = torch.permute(torch.abs(sumlm_alm_Ylm**2), (2, 1, 0))
-    data_synt_vol = torch.reshape(
-        data_synt_vol, (ny, nx, nz, numOfsegments)
-    )  # RSD: Check whether this is correct
+    data_synt_vol = reshape_fortran(data_synt_vol, (ny, nx, nz, numOfsegments))
+    # torch.reshape(
+    #     data_synt_vol, (ny, nx, nz, numOfsegments)
+    # )  # RSD: Check whether this is correct
 
     logging.debug("data_synt_vol shape: {}".format(data_synt_vol.shape))
     logging.debug("Data type, shape: {}, {}".format(data.dtype, data.shape))
@@ -389,8 +390,6 @@ def SAXS_AD_cost_function(
         else:
             AD_grad_theta = None
             AD_grad_phi = None  # Might need to return zeros instead of None
-
-        logging.debug(f"Ad_grad_coeff: {AD_grad_coeff}")
 
     finally:
         return error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi
@@ -471,7 +470,11 @@ def arb_projection(tomo_obj_all, X, Y, Z, R, p, xout, yout):  # Assume numpy
     Ty = (Yp - min_yout + 1) - Ay
 
     proj_out_all = torch.zeros(
-        len(yout), len(xout), tomo_obj_all.shape[-1], requires_grad=False
+        len(yout),
+        len(xout),
+        tomo_obj_all.shape[-1],
+        requires_grad=False,
+        dtype=torch.float64,
     )
     # RSD: Check if grad must be True or False.
 
@@ -484,21 +487,7 @@ def arb_projection(tomo_obj_all, X, Y, Z, R, p, xout, yout):  # Assume numpy
 
     logging.debug(f"nRows: {nRows} nCols: {nCols} nPages: {nPages}")
 
-    # proj_out_all = array_interpolate(
-    #     proj_out_all,
-    #     tomo_obj_all,
-    #     Ax,
-    #     Ay,
-    #     Tx,
-    #     Ty,
-    #     page_in,
-    #     page_out,
-    #     nElements,
-    #     nCols,
-    #     nRows,
-    #     nPages,
-    # )
-    proj_out_all = loop_interpolate(
+    proj_out_all = array_interpolate(
         proj_out_all,
         tomo_obj_all,
         Ax,
@@ -512,15 +501,31 @@ def arb_projection(tomo_obj_all, X, Y, Z, R, p, xout, yout):  # Assume numpy
         nRows,
         nPages,
     )
+    # proj_out_all = loop_interpolate(
+    #     proj_out_all,
+    #     tomo_obj_all,
+    #     Ax,
+    #     Ay,
+    #     Tx,
+    #     Ty,
+    #     page_in,
+    #     page_out,
+    #     nElements,
+    #     nCols,
+    #     nRows,
+    #     nPages,
+    # )
 
     if p["filter_2D"] == 0:
         pass
     elif p["filter_2D"] == 1:
-        filter_2D = torch.tensor([0.25, 1, 0.25])  # Hard code the entire matrix.
+        filter_2D = torch.tensor(
+            [0.25, 1, 0.25], dtype=torch.float64
+        )  # Hard code the entire matrix.
     elif p["filter_2D"] == 2:
-        filter_2D = torch.tensor([0.5, 1, 0.5])
+        filter_2D = torch.tensor([0.5, 1, 0.5], dtype=torch.float64)
     elif p["filter_2D"] == 3:
-        filter_2D = torch.tensor([1 / 3, 2 / 3, 1, 2 / 3, 1 / 3])
+        filter_2D = torch.tensor([1 / 3, 2 / 3, 1, 2 / 3, 1 / 3], dtype=torch.float64)
 
     if p["filter_2D"] > 0:
 
@@ -559,11 +564,6 @@ def arb_projection(tomo_obj_all, X, Y, Z, R, p, xout, yout):  # Assume numpy
         # logging.debug("Proj after conv shape: ", proj_out_all.shape)
         logging.debug(f"proj_out_all after conv shape: {proj_out_all.shape}")
 
-        # for i in range(proj_out_all.size(2)):
-        #     proj_out_all[:, :, i] = torch.fft.ifft2(
-        #         torch.fft.fft2(proj_out_all[:, :, i]) * torch.fft.fft2(filter_2D)
-        #     )  # Convolutional theorem. Check if works. Size issue.
-
     return proj_out_all
 
 
@@ -598,8 +598,6 @@ def loop_interpolate(
     Tx = np.reshape(Tx, (-1,), order="F")
     Ty = np.reshape(Ty, (-1,), order="F")
 
-    elems_icluded = 0
-
     for i in range(
         nElements
     ):  # Try to use numba here. Or use torch functions. Or use torch functions with numba. Or array operations.
@@ -607,7 +605,6 @@ def loop_interpolate(
         # RSD: Matlab implementation. Will not work
         if (Ax[i] > 0) & (Ax[i] < nCols) & (Ay[i] > 0) & (Ay[i] < nRows):
             # Check dimensions of Ax.
-            elems_icluded += 1
             ind = Ay[i] + nRows * Ax[i]
             temp1 = Tx[i] * Ty[i]
             temp2 = Tx[i] * (1 - Ty[i])
@@ -631,10 +628,11 @@ def loop_interpolate(
                     proj_out_all[shift_out - nRows - 1] + tomo_obj_all[shift_in] * temp4
                 )
 
+                # print(tomo_obj_all[shift_in] * temp4)
+
     proj_out_all = reshape_fortran(proj_out_all, org_shape)
     # proj_out_all.reshape(org_shape, order="F")
     logging.debug(f"proj_out_all before conv:\n{proj_out_all}")
-    logging.debug(f"Elems included: {elems_icluded}")
     return proj_out_all
 
 
@@ -660,55 +658,72 @@ def array_interpolate(
     indices = np.argwhere((Ax > 0) & (Ax < nCols) & (Ay > 0) & (Ay < nRows))
     arg_0, arg_1, arg_2 = indices[:, 0], indices[:, 1], indices[:, 2]
 
-    ind = Ay[arg_0, arg_1, arg_2] + nRows * Ax[arg_0, arg_1, arg_2]
+    # ind = Ay[arg_0, arg_1, arg_2] + nRows * Ax[arg_0, arg_1, arg_2]
 
-    temp1 = torch.from_numpy(Tx[arg_0, arg_1, arg_2] * Ty[arg_0, arg_1, arg_2])
-    temp2 = torch.from_numpy(Tx[arg_0, arg_1, arg_2] * (1 - Ty[arg_0, arg_1, arg_2]))
-    temp3 = torch.from_numpy((1 - Tx[arg_0, arg_1, arg_2]) * Ty[arg_0, arg_1, arg_2])
-    temp4 = torch.from_numpy(
-        (1 - Tx[arg_0, arg_1, arg_2]) * (1 - Ty[arg_0, arg_1, arg_2])
+    temp1 = (
+        torch.from_numpy(Tx[arg_0, arg_1, arg_2] * Ty[arg_0, arg_1, arg_2]).unsqueeze(1)
+        # .expand(-1, nPages)
+    )
+    temp2 = (
+        torch.from_numpy(
+            Tx[arg_0, arg_1, arg_2] * (1 - Ty[arg_0, arg_1, arg_2])
+        ).unsqueeze(1)
+        # .expand(-1, nPages)
+    )
+    temp3 = (
+        torch.from_numpy(
+            (1 - Tx[arg_0, arg_1, arg_2]) * Ty[arg_0, arg_1, arg_2]
+        ).unsqueeze(1)
+        # .expand(-1, nPages)
+    )
+    temp4 = (
+        torch.from_numpy(
+            (1 - Tx[arg_0, arg_1, arg_2]) * (1 - Ty[arg_0, arg_1, arg_2])
+        ).unsqueeze(1)
+        # .expand(-1, nPages)
     )
 
     logging.debug("indices shape: {}".format(indices.shape))
     logging.debug("tomo_obj_all shape: {}".format(tomo_obj_all.shape))
-    logging.debug(f"\nAy: {Ay}\nAx: {Ax}")
-    logging.debug(f"temp1 shape: {temp1.shape}")
+    # logging.debug(f"\nAy: {Ay}\nAx: {Ax}")
+    logging.debug(f"temp1 shape: {temp1[0,:]}")
     logging.debug(
-        f"tomo_obj_all indexed shape: {tomo_obj_all[arg_0, arg_1, arg_2, :].shape}"
+        f"tomo_obj_all indexed shape: {tomo_obj_all[arg_1, arg_0, arg_2, :].shape}"
     )
+    # RSD: The issue has been that indexing is occuring in parallel, not accumulative. Hence, a special formula is needed.
+    Ax = torch.from_numpy(Ax.astype(np.int64))
+    Ay = torch.from_numpy(Ay.astype(np.int64))
 
-    # RSD: Believe the indexing has to be this simple. Tomo-indexing has to be wrong. tomo have to swap order of arg1 and arg0
-    proj_out_all[Ay[arg_0, arg_1, arg_2], Ax[arg_0, arg_1, arg_2]] += (
-        temp1.unsqueeze(1) * tomo_obj_all[arg_1, arg_0, arg_2, :]
+    proj_out_all = torch.index_put(
+        proj_out_all,
+        (Ay[arg_0, arg_1, arg_2], Ax[arg_0, arg_1, arg_2]),
+        tomo_obj_all[arg_1, arg_0, arg_2, :] * temp1,
+        accumulate=True,
     )
-    proj_out_all[Ay[arg_0, arg_1, arg_2] - 1, Ax[arg_0, arg_1, arg_2]] += (
-        temp2.unsqueeze(1) * tomo_obj_all[arg_1, arg_0, arg_2, :]
+    proj_out_all = torch.index_put(
+        proj_out_all,
+        (Ay[arg_0, arg_1, arg_2] - 1, Ax[arg_0, arg_1, arg_2]),
+        tomo_obj_all[arg_1, arg_0, arg_2, :] * temp2,
+        accumulate=True,
     )
-    proj_out_all[Ay[arg_0, arg_1, arg_2], Ax[arg_0, arg_1, arg_2] - 1] += (
-        temp3.unsqueeze(1) * tomo_obj_all[arg_1, arg_0, arg_2, :]
+    proj_out_all = torch.index_put(
+        proj_out_all,
+        (Ay[arg_0, arg_1, arg_2], Ax[arg_0, arg_1, arg_2] - 1),
+        tomo_obj_all[arg_1, arg_0, arg_2, :] * temp3,
+        accumulate=True,
     )
-    proj_out_all[Ay[arg_0, arg_1, arg_2] - 1, Ax[arg_0, arg_1, arg_2] - 1] += (
-        temp4.unsqueeze(1) * tomo_obj_all[arg_1, arg_0, arg_2, :]
+    proj_out_all = torch.index_put(
+        proj_out_all,
+        (Ay[arg_0, arg_1, arg_2] - 1, Ax[arg_0, arg_1, arg_2] - 1),
+        tomo_obj_all[arg_1, arg_0, arg_2, :] * temp4,
+        accumulate=True,
     )
-
     # RSD: Rage about linear indexing in MATLAB: https://www.mathworks.com/matlabcentral/answers/1015-why-does-matlab-use-linear-indexing
     # RSD: Can index as a single COLUMN vector. Hence linearly subtract one index, is to subtract one row.
 
     # RSD: Believe there is no need for this loop with array operations and 3D tensors. MATLAB iterates over all elements.
-    """
-    for j in range(nPages):
-        shift_in = indices + j * page_in
-        shift_out = ind + j * page_out
-
-        proj_out_all[shift_out] += tomo_obj_all[shift_in] * temp1
-        proj_out_all[shift_out - 1] += tomo_obj_all[shift_in] * temp2
-        proj_out_all[shift_out - nRows] += tomo_obj_all[shift_in] * temp3
-        proj_out_all[shift_out - nRows - 1] += tomo_obj_all[shift_in] * temp4
-    """
-    # proj_out_all =
-    logging.debug(
-        f"proj_out_all before conv:\n{proj_out_all.shape}"
-    )  # RSD: TODO The array interpolation needs reshaping. Look up array indexing.
+    # RSD: Swap row and incex to see if projections become correct. Nope.
+    # RSD: Loop interpolate works, but gradients bit off on the side. Do not understand why array interpolate does not give the same projection.
 
     return proj_out_all
 
@@ -722,7 +737,7 @@ def reshape_fortran(x, shape):
 if __name__ == "__main__":
     # Test code
     workspace = scipy.io.loadmat(
-        r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT/Data Sets/Debug Data/workspace_calc_grad.mat"
+        r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT/Data Sets/Debug Data/validation_python_workspace.mat"
     )
     theta_struct_it = workspace["theta_struct"]
     phi_struct_it = workspace["phi_struct"]
@@ -743,6 +758,8 @@ if __name__ == "__main__":
     find_orientation = workspace["find_orientation"]
     numOfCoeffs = workspace["numOfCoeffs"]
     numOfvoxels = workspace["numOfvoxels"]
+
+    tic = time.time()
 
     main(
         theta_struct_it,
@@ -765,3 +782,32 @@ if __name__ == "__main__":
         numOfCoeffs,
         numOfvoxels,
     )
+    tac = time.time()
+    print(f"Time elapsed: {tac - tic}")
+
+# RSD: False code:
+"""
+    # RSD: Believe the indexing has to be this simple. Tomo-indexing has to be wrong. tomo have to swap order of arg1 and arg0
+    # proj_out_all[Ay[arg_0, arg_1, arg_2], Ax[arg_0, arg_1, arg_2], :] = (
+    #     proj_out_all[Ay[arg_0, arg_1, arg_2], Ax[arg_0, arg_1, arg_2], :]
+    #     + temp1 * tomo_obj_all[arg_1, arg_0, arg_2, :]
+    # )
+
+    # proj_out_all[Ay[arg_0, arg_1, arg_2] - 1, Ax[arg_0, arg_1, arg_2]] = (
+    #     proj_out_all[Ay[arg_0, arg_1, arg_2] - 1, Ax[arg_0, arg_1, arg_2]]
+    #     + temp2 * tomo_obj_all[arg_1, arg_0, arg_2, :]
+    # )
+
+    # print(torch.max(temp2.unsqueeze(1) * tomo_obj_all[arg_1, arg_0, arg_2, :]))
+    # proj_out_all[Ay[arg_0, arg_1, arg_2], Ax[arg_0, arg_1, arg_2] - 1] = (
+    #     proj_out_all[Ay[arg_0, arg_1, arg_2], Ax[arg_0, arg_1, arg_2] - 1]
+    #     + temp3 * tomo_obj_all[arg_1, arg_0, arg_2, :]
+    # )
+
+    # proj_out_all[Ay[arg_0, arg_1, arg_2] - 1, Ax[arg_0, arg_1, arg_2] - 1] = (
+    #     proj_out_all[Ay[arg_0, arg_1, arg_2] - 1, Ax[arg_0, arg_1, arg_2] - 1]
+    #     + temp4 * tomo_obj_all[arg_1, arg_0, arg_2, :]
+    # )
+
+
+"""
