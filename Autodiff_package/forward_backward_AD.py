@@ -709,7 +709,8 @@ if __name__ == "__main__":
     nx = workspace["nx"]
     nz = workspace["nz"]
     numOfsegments = workspace["numOfsegments"]
-    current_projection = workspace["projection"][0, 0]  # [2]
+    # current_projection = workspace["projection"][0, 0]  # [2]
+    projection = workspace["projection"]
     p = workspace["p"]
     X = workspace["X"]
     Y = workspace["Y"]
@@ -724,28 +725,30 @@ if __name__ == "__main__":
 
     tic = time.time()
 
-    main(
-        theta_struct_it,
-        phi_struct_it,
-        a_temp_it,
-        ny,
-        nx,
-        nz,
-        numOfsegments,
-        current_projection,
-        p,
-        X,
-        Y,
-        Z,
-        numOfpixels,
-        unit_q_beamline,
-        Ylm_coef,
-        find_coefficients,
-        find_orientation,
-        numOfCoeffs,
-        numOfvoxels,
-        find_grad=True,
-    )
+    for i in range(255):
+        current_projection = projection[0, i]
+        main(
+            theta_struct_it,
+            phi_struct_it,
+            a_temp_it,
+            ny,
+            nx,
+            nz,
+            numOfsegments,
+            current_projection,
+            p,
+            X,
+            Y,
+            Z,
+            numOfpixels,
+            unit_q_beamline,
+            Ylm_coef,
+            find_coefficients,
+            find_orientation,
+            numOfCoeffs,
+            numOfvoxels,
+            find_grad=True,
+        )
     tac = time.time()
     print(f"Time elapsed: {tac - tic}")
 
