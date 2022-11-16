@@ -535,7 +535,7 @@ def plot_err_hist(
 
     metric = [AD_rec, sym_rec]
     subtitles = ["Automatic", "Symbolic"]
-    legends = ["a0", "a2", "a4", "a6", "\u03B8 (\u03C0)", "\u03C6 (\u03C0)"]
+    legends = ["a0", "a2", "a4", "a6", r"$\theta$ ($\pi$)", r"$\varphi$ ($\pi$)"]
 
     fasit_params = [
         fasit_rec.get_1D_array(fasit_rec.params[p])
@@ -550,7 +550,7 @@ def plot_err_hist(
             for p in range(len(metric[i].params))
         ]
 
-        ax[i].set_xlabel("Abs error (wrt. \u03C0)")
+        ax[i].set_xlabel(r"Abs error (wrt. $\pi$)")
         ax[i].set_ylabel("Counts")
         ax[i].set_xscale(xscale)
         ax[i].set_title(subtitles[i])
@@ -695,7 +695,7 @@ def plot_coeffs_distribution(
         sym_rec.get_1D_array(sym_rec.params[p]) for p in range(len(sym_rec.params))
     ]
 
-    titles = ["a0", "a2", "a4", "a6", "\u03B8", "\u03C6"]
+    titles = ["a0", "a2", "a4", "a6", r"\u03B8", r"\u03C6"]
 
     fig, axs = plt.subplots(2, 2)
     for i, ax in enumerate(np.reshape(axs, -1)):
@@ -759,14 +759,14 @@ def plot_angles_distribution(
         sym_rec.get_1D_array(sym_rec.params[p]) for p in range(len(sym_rec.params))
     ]
 
-    titles = ["a0", "a2", "a4", "a6", "\u03B8", "\u03C6"]
+    titles = ["a0", "a2", "a4", "a6", r"$\theta$", r"$\varphi$"]
 
     fig, axs = plt.subplots(1, 2, figsize=(12, 5))
     for i, ax in enumerate(np.reshape(axs, -1)):
         ax.set_xticks(np.arange(0, 5 * np.pi / 4, np.pi / 4))
         ax.set_xticklabels(["0", "1/4", "1/2", "3/4", "1"])
 
-        ax.set_xlabel("Value [\u03C0]")
+        ax.set_xlabel(r"Value [$\pi$]")
         ax.set_ylabel("Counts")
         ax.set_title(titles[i + 4])
         ax.hist(

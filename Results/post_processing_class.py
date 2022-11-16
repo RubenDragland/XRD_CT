@@ -11,12 +11,14 @@ class TensorTomographyReconstruction:
         self.mat = scipy.io.loadmat(self.path_to_mat_file)
         if dataset:
             self.key = "fasit"
+            self.slice = self.mat["slice"][0]
         else:
             self.key = "s"
             self.error_data = self.mat["e"]
             self.timing_data = self.mat["timing"]
 
         self.mask = self.mat[self.key]["mask3D"][0, 0]
+        # Possibly not completely correct; the mask.
         self.theta = self.mat[self.key]["theta"][0, 0][0, 0][0] % (np.pi)
         self.phi = self.mat[self.key]["phi"][0, 0][0, 0][0] % (np.pi)
         self.a0 = self.mat[self.key]["a"][0, 0][:, 0][0][0]
@@ -54,6 +56,12 @@ class TensorTomographyReconstruction:
         """
         return self.indexing_dict[key]
 
+    def flatten(self, key):
+        """
+        Returns the 1D array of the reconstructed volume
+        """
+        return np.ndarray.flatten(self.indexing_dict[key])
+
     def get_1D_array(self, ndarray):
         """
         Returns the 1D array of the reconstructed volume
@@ -70,3 +78,16 @@ class TensorTomographyReconstruction:
         self.theta[self.theta < 0] += np.pi
         self.phi[self.phi < 0] += np.pi
         return
+
+    def slice_params(self, fasit_slices):
+        """
+        Returns the accuracte slice of the reconstructed volume
+        """
+        self.sliced_dict = {}
+        for key in self.indexing_dict.keys():
+            self.sliced_dict[key] = self.indexing_dict[key][
+                fasit_slices[0] : fasit_slices[1],
+                fasit_slices[0] : fasit_slices[1],
+                fasit_slices[0] : fasit_slices[1],
+            ]
+        return self.sliced_dict

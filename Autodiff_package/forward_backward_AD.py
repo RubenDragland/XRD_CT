@@ -654,7 +654,6 @@ def array_interpolate(
 
     logging.debug("indices shape: {}".format(indices.shape))
     logging.debug("tomo_obj_all shape: {}".format(tomo_obj_all.shape))
-    logging.debug(f"temp1 shape: {temp1[0,:]}")
     logging.debug(
         f"tomo_obj_all indexed shape: {tomo_obj_all[arg_1, arg_0, arg_2, :].shape}"
     )
