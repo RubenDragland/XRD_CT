@@ -208,7 +208,7 @@ z = (1:N(3)) - ceil(N(3)/2);
 
 %RSD: Implement if elseif else with the options being optimise all, orientation, coefficients, or not find grad
 
-if find_grad && p.python
+if p.python && find_grad
     
     P = py.sys.path;
     if count(P,'C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Autodiff_package') == 0
@@ -235,7 +235,7 @@ if find_grad && p.python
         %[error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = py.forward_backward_AD.main(pyargs("theta_struct_it",theta_struct_it, "phi_struct_it", phi_struct_it, "a_temp_it", a_temp_it,"ny", ny,"nx", nx, "nz", nz, "numOfsegments", numOfsegments,"current_projection", current_projection, "p", p, "X", X, "Y", Y,"Z", Z, "numOfpixels", numOfpixels, "unit_q_beamline", unit_q_beamline, "Ylm_coef", Ylm_coef, "find_coefficients", find_coefficients, "find_orientation", find_orientation, "numOfCoeffs", numOfCoeffs, "numOfvoxels", numOfvoxels) ); %py.forward_backward_AD.main(theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, find_orientation, numOfCoeffs, numOfvoxels);
         %res = py.forward_backward_AD.print_test("abc");
         %[error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = py.forward_backward_AD.main(theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, X, Y, Z, numOfpixels, unit_q_beamline, Ylm_coef, find_coefficients, find_orientation, numOfCoeffs, numOfvoxels);
-        imeres =  py.forward_backward_AD.main(theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, Xi, Yi, Zi, numOfpixels, unit_q_beamline_i, Ylm_coef_i, find_coefficients, find_orientation, numOfCoeffs, numOfvoxels) ;
+        imeres =  py.forward_backward_AD.main(theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, current_projection, p, Xi, Yi, Zi, numOfpixels, unit_q_beamline_i, Ylm_coef_i, find_coefficients, find_orientation, numOfCoeffs, numOfvoxels, find_grad) ;
         
         %[error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi] = [imeres{1}, imeres{2}, imeres{3}, imeres{4}];
         
@@ -243,13 +243,16 @@ if find_grad && p.python
         E = E + error_norm;
         if ~isempty( double(imeres{2}) )
             AD_grad_coeff = double(imeres{2});
-            grad_a = grad_a + reshape(AD_grad_coeff, ny, nx, nz, numOfCoeffs); % RSD: Check this!
+            grad_a = grad_a + reshape( permute(AD_grad_coeff, [3,2,1]) , ny, nx, nz, numOfCoeffs) ; % RSD: Check this!
+            %RSD: Hacking alarm: This gives the correct output format given
+            %RSD: the mix of C- and F- reshaping inside the python code.
+            %RSD: Status quo everything is still shady. 
         end
         if ~isempty( double(imeres{3}) )
             AD_grad_theta = double( imeres{3});
             AD_grad_phi = double (imeres{4} );
-            grad_theta_struct = grad_theta_struct + reshape(AD_grad_theta, ny, nx, nz);
-            grad_phi_struct = grad_phi_struct + reshape(AD_grad_phi, ny,nx,nz);
+            grad_theta_struct = grad_theta_struct + reshape( permute(AD_grad_theta, [3,2,1]), ny, nx, nz); % RSD: Probably fix this
+            grad_phi_struct = grad_phi_struct + reshape( permute(AD_grad_phi, [3,2,1]), ny,nx,nz);
         end
 
     end
@@ -525,6 +528,8 @@ if find_coefficients
         end
     end
 end
+
+%RSD: Hack to prevent infinite line search. Do not know why it occurs. 
 
 if find_grad
     % gradient output vector

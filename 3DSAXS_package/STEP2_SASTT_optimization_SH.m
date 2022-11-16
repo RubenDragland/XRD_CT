@@ -11,7 +11,7 @@ base_path = '/Data sets/';  % = '~/Data10/' for online analysis,
 base_path = [parent base_path] ;
                                             % provide the path for offline analysis
                                             % Ex: '/das/work/p16/p16649/'
-sample_name = 'SASTT_carbon_knot_aligned_ASTRA_correctedny4nx4'; %'sample_name';     % name given in the saxs_caller_template
+sample_name = 'Synthetic_sample_ny4_ny4_all_coeffs'; %'SASTT_carbon_knot_aligned_ASTRA_correctedny4nx4'; %'sample_name';     % name given in the saxs_caller_template
 p.add_name = '';        % additional name the optimizations: = [ ] if not needed
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -177,14 +177,10 @@ p.slice = 0; %in case the optimization is done on a slice (so it is using a 2D k
 kernel3D = window3(5,5,5,@hamming);
 p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 
-p.itmax = 25; %20                % maximum number of iterations: about 20
+p.itmax = 10; %20                % maximum number of iterations: about 20
 p.skip_projections = 1;         % = 1, for not skipping projections
 p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
 p.method = "bilinear";          % RSD: Choose method of interpolation.
-
-if p.mode
-    p.method = "nearest"        % RSD: Another safety net for method of interpolation.
-end
 
 p.avoid_wrapping=0;            % avoid wrapping over 2Pi
 
@@ -202,14 +198,14 @@ fprintf('Saving results in %s\n',p.save.output_filename)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % EDIT:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-make_3Dmask = 1; % 1 to create a 3D mask, 0 to see the symmetric intensity tomogram
+make_3Dmask = 0; % 1 to create a 3D mask, 0 to see the symmetric intensity tomogram
 mask.cut_off = []; % = [] for automatic detection of the mean value using Otsu threshold
 mask.diam_cylinder = []; % Diameter of a cylinder outside, = [] does not create the mask
 mask.gauss_filter = 1; % Apply a filter to the data to reduce noise
 mask.openning = 1;     % Apply an openning operation on the mask, this makes it 
                        % larger as is important to not have too tight support constraint.
 coloraxis = 'auto'; % apply same color scale to the three projections xy, yz and xz fron view3
-viewpar.interactive = 1;  % = true if you want to explore the volume
+viewpar.interactive = 0;  % = true if you want to explore the volume
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 fprintf('Step 2.3: Define a 3D mask (voxels that aren''t going to be optimized)\n')
@@ -258,16 +254,11 @@ p.regularization = 0;             % Sieves regularization on the coefficients. (
 p.regularization_angle = 0;       % Regularization of the angles. (true or false)
 p.regularization_angle_coeff = 0; % mu for regularization of angle, needs to be found with L-curve
 
-p.itmax = 30; %50; %30;           % maximum number of iterations: about 50
+p.itmax = 20; %50; %30;           % maximum number of iterations: about 50
 p.skip_projections = 1; % = 1, for not skipping projections
 
 %RSD: Watch out for these settings. 
-p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
-p.method = "nearest";          % RSD: Choose method of interpolation.
-
-if p.mode
-    p.method = "nearest"        % RSD: Another safety net for method of interpolation.
-end
+p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
 
 p.avoid_wrapping = 1;   % Avoid wrapping of the angle (to keep angle between 0 and 2pi) (true or false)
 
@@ -308,7 +299,7 @@ end
 p.opt_coeff = [0, 1, 1, 1];
 
 p.find_orientation = 0;     % Optimize over the main orientation of the structure (true or false)
-p.regularization = 1;       % apply Sieves regularization on the coefficient (true or false)
+p.regularization = 0;       % apply Sieves regularization on the coefficient (true or false)
 p.regularization_angle = 0; % Regularization of the angles. (true or false)
 
 %parameters for the sieves regularization (blurring the gradient)
@@ -366,15 +357,15 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % EDIT:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-it_max = 10; %10;               % 3 to 10 iterations seem to work well
-mu = logspace(-5, 10, 15); % This values should be standard: larger range if there is no crossing point
-p.skip_projections = 10;   % = 1, for not skipping projections. = 5-10 works well
-p.save.output_filename = '';
-p.save.image_filename = '';
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-close all
-fprintf('Step 2.6: find optimal regularization parameters for final step\n')
-[errormetric, penalty_error, regularization_coeff] = optimization.find_regularization_mu(projection, mu, it_max, p, s);
+% it_max = 10; %10;               % 3 to 10 iterations seem to work well
+% mu = logspace(-5, 10, 15); % This values should be standard: larger range if there is no crossing point
+% p.skip_projections = 10;   % = 1, for not skipping projections. = 5-10 works well
+% p.save.output_filename = '';
+% p.save.image_filename = '';
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% close all
+% fprintf('Step 2.6: find optimal regularization parameters for final step\n')
+% [errormetric, penalty_error, regularization_coeff] = optimization.find_regularization_mu(projection, mu, it_max, p, s);
 
 %% Step 2.7: final optimization: combine all
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -383,9 +374,9 @@ fprintf('Step 2.6: find optimal regularization parameters for final step\n')
 % determine an approximation of the regularization coefficient
 load(coef_a1const_filename)
 
-t = sum(((s.a(1).data.*optimization.spherical_harm(0,0,0,0)).^2),4); %plot the first coefficent
-tt = (sum(t, 3).*projection(1).window_mask); %axis tight equal xy
-mu_guess = mean(mean(tt));
+% t = sum(((s.a(1).data.*optimization.spherical_harm(0,0,0,0)).^2),4); %plot the first coefficent
+% tt = (sum(t, 3).*projection(1).window_mask); %axis tight equal xy
+% mu_guess = mean(mean(tt));
 
 % optimize all coefficients (a0, a2, a4 and a6) and angles (theta and phi)
 % whihout any constriction
@@ -393,9 +384,9 @@ p.opt_coeff = [1, 1, 1, 1];
 
 p.find_orientation = 1;      % Optimize over the main orientation of the structure
 
-p.regularization = 1;        % Sieves regularization on coeff
-p.regularization_angle = 1; %regularization of angle
-p.regularization_angle_coeff = mu_guess;  %find the appropriate mu with L-curve from step 2.6 % RSD: Is this correct?
+p.regularization = 0;        % Sieves regularization on coeff
+p.regularization_angle = 0; %regularization of angle
+%p.regularization_angle_coeff = mu_guess;  %find the appropriate mu with L-curve from step 2.6 % RSD: Is this correct?
 
 %parameters for the sieves regularization (blurring the gradient)
 kernel3D=window3(5,5,5,@hamming);

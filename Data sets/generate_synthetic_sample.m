@@ -60,17 +60,23 @@ else
     projection(1).integ.theta_det = pi/2 + mean( asin(q_range*lambda/(4*pi)) ); % for SAXS = pi/2, for WAXS = pi/2 - half the scattering angle;
 end
 
+%% Define Size
+
 % define the size of the tomogram (not the same as the tomogram, as some projection might change the size)
-p.ny   = max(arrayfun(@(proj) size(proj.data, 1), projection));%+6
-p.nx   = max(arrayfun(@(proj) size(proj.data, 2), projection));%+6
+p.ny   = 7; %max(arrayfun(@(proj) size(proj.data, 1), projection));%+6
+p.nx   = 7; %max(arrayfun(@(proj) size(proj.data, 2), projection));%+6
 p.nz = p.nx;
+
+%RSD: Try using a mask. 
+slice = [ 2 5];
 
 % number of voxels in the tomogram
 p.numOfvoxels = p.nx * p.ny * p.nz;
 
 s = struct;
 
-s.mask3D = ones(p.ny, p.nx, p.nz); %RSD: NOTE Y FIRST...
+s.mask3D = zeros(p.ny, p.nx, p.nz); %RSD: NOTE Y FIRST...
+%s.mask3D(slice(1) + 1: slice(2), slice(1) +1 : slice(2), slice(1)+1: slice(2)) = 1;
 
 % parameters for optimization of 1 coefficient for symmetric intensity
 % Spherical harmonic parameters for optimizing only the coefficient
@@ -81,82 +87,25 @@ s.mask3D = ones(p.ny, p.nx, p.nz); %RSD: NOTE Y FIRST...
 l = [0 2 4 6];  % Polar order
 m = [0 0 0 0];  % Azimuthal order
 
-% Q-resolved %RSD: Do not understand this one completely
-caller = dbstack;
-if numel(caller)>=3 % If called from another script
-    fprintf('**************** q-resolved ************************\n')
-    fprintf('Adjusting data to reconstruct q-resolved index %05d\n',indsq)
-    q_indices = projection(ii).par.qresolved_q{indsq};
-    s.q_range_A = projection(1).integ.q(q_indices(:));
-    p.add_name = [p.add_name sprintf('_qres_ind_%05d',indsq)];
-    for ii = 1:numel(projection)
-        projection(ii).data = projection(ii).data_q(:,:,:,indsq);
-        % Cleaning up a bit, making sure that parameters that would be
-        % incorrect cannot be used.
-%         projection(ii).par.which_qrange = [];
-%         projection(ii).par.r_sum = {};
-    end
-    doing_q_resolved = true;
-    % Check for Nan
-    for ii = 1:numel(projection)
-        if any(~isfinite(projection(ii).data(:)))
-            fprintf('Found NaN or non-finite value in projection %d\n',ii)
-            figure(4); imagesc(any(~isfinite(projection(ii).data),3)); title('Found NaN')
-            projection(ii).window_mask(any(~isfinite(projection(ii).data),3)) = 0; %#ok<SAGROW>
-            projection(ii).data(~isfinite(projection(ii).data)) = 0; %#ok<SAGROW>
-            figure(3); imagesc(projection(ii).window_mask); title(sprintf('Projection %d, Corrected mask to ignore pixel with non-finite value',ii))
-%             return                                               
-%             keyboard
-        end
-    end
-%     keyboard
-else
-    % Adding q-range used in the integration to the tensor
-    fprintf('Adjusting data \n')
-    whichqrange = projection(1).par.which_qrange;
-    q_indices = projection(1).par.r_sum{1,whichqrange};
-    %s.q_range_A = projection(1).integ.q(q_indices(:)); % I think it will be useful to not have only the extreme values but also the number of q-indices used, so I keep all
-    % IGNORED THIS VARIABLE AS IT IS NOT BEING USED. WEIRD...
-    doing_q_resolved = false;
-end
-
 
 %% Choose sample
 
-filename_sample = "Data Sets/Synthetic_sample_ny4_ny4_all_coeffs.mat";
+filename_sample = "Data Sets/Validation_periodic_filter1_3cube_4off_0align";
 base_value = 0.69;
 a0 = base_value;
-a2 = 1/5*base_value;
-a4 = 1/48*base_value;
-a6 = 1/96*base_value;
+a2 = 1/3*base_value;
+a4 = 1/6*base_value;
+a6 = 1/12*base_value;
+
+theta_init = pi/3;
+phi_init = pi/3;
+
 
 a= [a0 a2 a4 a6];
 
-
 % Choose orientation pattern
-theta_op = ones(p.ny,p.nx,p.nz) ;
-phi_op = ones(p.ny,p.nx,p.nz) ;
-
-% This model is domains
-theta_op(1: p.ny/2 , 1: p.nx/2, 1: p.nz/2 ) = 0;
-theta_op(1:p.ny/2 , 1 + p.nx/2: p.nx, 1: p.nz/2) = pi/4;
-theta_op(1+p.ny/2: p.ny , 1 : p.nx/2, 1: p.nz/2) = pi/3;
-theta_op(1+p.ny/2: p.ny , 1 + p.nx/2: p.nx, 1: p.nz/2) = pi/2;
-
-theta_op(1: p.ny/2 , 1: p.nx/2, 1+ p.nz/2 : p.nz) = 0 + pi/2;
-theta_op(1: p.ny/2 , 1 + p.nx/2: p.nx, 1+ p.nz/2 : p.nz) = pi/4 + pi/2;
-theta_op(1+ p.ny/2: p.ny , 1 : p.nx/2, 1+ p.nz/2 : p.nz) = pi/3 + pi/2;
-theta_op(1+ p.ny/2: p.ny , 1 + p.nx/2: p.nx,1+ p.nz/2 : p.nz) = pi;
-
-phi_op(1: p.ny/2 , 1: p.nx/2, 1: p.nz/2) = 0;
-phi_op(1: p.ny/2 , 1 + p.nx/2: p.nx, 1: p.nz/2) = pi/4;
-phi_op(1+p.ny/2: p.ny , 1 : p.nx/2, 1: p.nz/2) = pi/3;
-phi_op(1+p.ny/2: p.ny , 1 + p.nx/2: p.nx, 1: p.nz/2) = pi/2;
-
-phi_op(1: p.ny/2 , 1: p.nx/2, 1+ p.nz/2 : p.nz) = 0 + pi/2;
-phi_op(1: p.ny/2 , 1 + p.nx/2: p.nx, 1+ p.nz/2 : p.nz) = pi/4 + pi/2;
-phi_op(1+p.ny/2: p.ny , 1 : p.nx/2, 1+ p.nz/2 : p.nz) = pi/3 + pi/2;
-phi_op(1+p.ny/2: p.ny , 1 + p.nx/2: p.nx,1+ p.nz/2 : p.nz) = pi;
+theta_op = ones(p.ny,p.nx,p.nz) * theta_init ;
+phi_op = ones(p.ny,p.nx,p.nz) * phi_init ;
 
 
 % calculate the initial values
@@ -173,6 +122,16 @@ end
 
 
 % Params
+
+if 1
+    % Adding q-range used in the integration to the tensor
+    fprintf('Adjusting data \n')
+    whichqrange = projection(1).par.which_qrange;
+    q_indices = projection(1).par.r_sum{1,whichqrange};
+    %s.q_range_A = projection(1).integ.q(q_indices(:)); % I think it will be useful to not have only the extreme values but also the number of q-indices used, so I keep all
+    % IGNORED THIS VARIABLE AS IT IS NOT BEING USED. WEIRD...
+    doing_q_resolved = false;
+end
 
 % optimize all coefficients (a0, a2, a4 and a6) and angles (theta and phi)
 % whihout any constriction
@@ -198,19 +157,27 @@ p.method = "bilinear";          % RSD: Choose method of interpolation.
 p.python = 0;
 p.GPU = 0;
 make_3Dmask = 0;
+p.filter_2D = 1; % Important param. Do not know what is best...
 
 p.avoid_wrapping = 1;     % avoid wrapping over 2Pi of the angle
 
 
 %% Run error metric without optimization
+for jj = 1: length(projection)
+    projection(jj).data = zeros(p.nx, p.nx, 8);
+    projection(jj).window_mask = ones(p.nx, p.nx);
+    %RSD: Question if one should change the optimisation mask. See diskuss
+end
 
 [E, ~, proj_out] = optimization.SAXS_tomo_3D_err_metric([], p,s, projection);
 
 for ii = 1:length(projection)
-
     projection(ii).data = proj_out(ii).projection;
+    projection(ii).dx = 0;
+    projection(ii).dy = 0; %RSD: Faith in no alignment. 
 end
 
 fasit = [s];
 
-save(filename_sample,'projection','fasit');
+
+save(filename_sample,'projection','fasit', 'slice');

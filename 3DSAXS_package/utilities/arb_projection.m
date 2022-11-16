@@ -106,12 +106,6 @@ else
     filter_2D = 3; % Strength of filter applied to image
 end
 
-%if isfield(p, 'mode') % Assurance that only nearest for AD
-%    if p.mode
-%        method = 'nearest';
-%    end
-%end
-
 % Optional input window, there can be a subpixel offset
 % if nargin == 6
 %     xout = [-20:20];
@@ -314,11 +308,6 @@ elseif strcmpi(method,'bilinear')
     size_proj_out_all = uint64([numel(yout), numel(xout), size(tomo_obj_all, 4)]); % RSD: SIZES OF ARRAYS?
     proj_out_all = sum_projection(size_proj_out_all, tomo_obj_all, Ax, Ay, Tx, Ty);
     
-    %RSD: Debugging
-    %if all(proj_out_all == 0)
-    %    display("True");
-    %end
-    
 else
     error('Method was not recognized')
 end
@@ -342,13 +331,6 @@ if filter_2D > 0
     if p.mode && find_grad
         bias = zeros( 1 ); 
         proj_out_all = dlconv(proj_out_all, filt_2D, bias, DataFormat = "SSU", Padding = "same"); %RSD: Believe this will work. 
-
-        %RSD: Evt.
-        %for jj = 1:size(proj_out_all,3)
-        %    proj_out_all(:,:,jj) = dlconv(proj_out_all(:,:,jj), filt_2D, 'same');
-        %end
-        %RSD: Annoying functionality. Apply the convolutional theorem instead
-        %proj_out_all = ifft( fft(proj_out_all) .* fft(filt_2D) ); Only supported for unformatted input arrays
     
     else
 

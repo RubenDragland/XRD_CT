@@ -6,9 +6,9 @@
 parent = cd;
 base_path = '/Data sets/';  % = '~/Data10/' for online analysis,
 base_path = [parent base_path] ;
-                                            % provide the path for offline analysis
+                                           % provide the path for offline analysis
                                             % Ex: '/das/work/p16/p16649/'
-sample_name = 'SASTT_carbon_knot_aligned_ASTRA_correctedny4nx4'; %'sample_name';     % name given in the saxs_caller_template
+sample_name = 'Validation_periodic_filter1_3cube_4off_0align'; % 'SASTT_carbon_knot_aligned_ASTRA_correctedny4nx4'; %'Synthetic_sample_ny4_ny4_all_coeffs'; %'sample_name';     % name given in the saxs_caller_template
 p.add_name = '';        % additional name the optimizations: = [ ] if not needed
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -52,7 +52,7 @@ E = [];%12.4;   % X-ray energy in keV, needed for Ewald sphere correction, leave
 
 % %%% 2D plot characteristics (the data) %%%
 % Half of the Angular segments in integration
-p.numsegments = length(projection(1).integ.phi_det)/2;
+p.numsegments = 8; % length(projection(1).integ.phi_det)/2; RSD: Another convention in the data sets provided by fredrik.
 
 % read the phi_det from integ
 % consider only the first half because of the symmetry assumption for the
@@ -154,9 +154,9 @@ end
 
 p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
 p.method = "bilinear";          % RSD: Choose method of interpolation.
-p.filter_2D = 3;                % RSD: The best filter.
+p.filter_2D = 1;                % RSD: The best filter.
 p.GPU = 0;
-p.python = 0; %RSD: Improve safety here.
+p.python = 1; %RSD: Improve safety here.
 
 % Defining filenames for results. RSD: Moved down one cell to create
 % add_name based on mode
@@ -201,8 +201,6 @@ sym_opt_filename = fullfile(p.optimization_output_path, sprintf('result_%s%s_sym
 %FIXED PATH: A GOOD RULE OF THUMB SHOULD BE TO HAVE FULLFILE AS THE OUTMOST FUNCTION WHEN DEFINING A PATH.
 fprintf('filename: %s', sym_opt_filename);
 
-
-
 p.avoid_wrapping=0;            % avoid wrapping over 2Pi
 
 p.save.output_filename = sym_opt_filename;
@@ -240,7 +238,8 @@ load(sym_opt_filename);
 % needed for plotting
     
 if make_3Dmask
-   [s.mask3D, cut_off] = create_mask3D(s.a(1).data, mask);
+   %[s.mask3D, cut_off] = create_mask3D(s.a(1).data, mask);
+   s.mask3D = fasit.mask3D;
 else
     s.mask3D = ones(size(s.a(1).data));
     cut_off = 0;
@@ -280,23 +279,6 @@ p.regularization_angle_coeff = 0; % mu for regularization of angle, needs to be 
 p.itmax = 20; %50; %30;           % maximum number of iterations: about 50
 p.skip_projections = 1; % = 1, for not skipping projections
 
-% %RSD: Watch out for these settings. 
-% p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
-% p.method = "bilinear";          % RSD: Choose method of interpolation.
-% p.python = 0;
-% p.GPU = 0;
-% 
-% % Defining filenames for results. RSD: Moved down one cell to create
-% % add_name based on mode
-% if p.mode && p.GPU
-%     p.add_name = "AD_GPU";
-% elseif p.mode && p.python
-%     p.add_name = "AD_python";
-% elseif p.mode
-%     p.add_name = "AD";
-% else
-%     p.add_name = "symbolic";
-% end
 
 p.avoid_wrapping = 1;   % Avoid wrapping of the angle (to keep angle between 0 and 2pi) (true or false)
 
@@ -318,7 +300,7 @@ m = [0 0 0];  % Azimuthal order
 
 %%%define ratio of coefficient (fixed in this step) for bone: 1, -3, 6,
 %%%%RSD: Ratios should be changed. Have carbon knot.
-a_ratio = [1, -3, 6];
+a_ratio = [1, 5, 10];
 
 for ii = 1:numel(l)
     s.a(ii).data = sym_int.s.a(1).data / a_ratio(ii);
@@ -353,24 +335,6 @@ p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 p.itmax = 20; %20;            % maximum number of iterations: about 20
 p.skip_projections = 1;  % = 1, for not skipping projections
 
-% %RSD: Watch out for these settings. 
-% p.mode = 0;                      % RSD: 1 for AD, 0 for symbolic
-% p.method = "bilinear";          % RSD: Choose method of interpolation.
-% p.python = 0;
-% p.GPU = 0;
-% 
-% % Defining filenames for results. RSD: Moved down one cell to create
-% % add_name based on mode
-% if p.mode && p.GPU
-%     p.add_name = "AD_GPU";
-% elseif p.mode && p.python
-%     p.add_name = "AD_python";
-% elseif p.mode
-%     p.add_name = "AD";
-% else
-%     p.add_name = "symbolic";
-% end
-
 p.avoid_wrapping = 0;    % avoid wrapping over 2Pi of the angle RSD: What should be chosen?
 
 coef_a1const_filename = sprintf('%s/result_%s_q%d-%d_coef_a1const_%s.mat',p.optimization_output_path, ...
@@ -390,7 +354,7 @@ sym_opt = importdata(sym_opt_filename);
 % parameters for optimization of coefficients with constant a1 fixed from initial optimization
 % loas parameters from the angle
 fprintf('Loading parameters from %s\n',angle_opt_filename)
-angle_opt = importdata(angle_opt_filename);
+angle_opt = importdata(angle_opt_filename); % RSD: Cannot see if the optimised angles are loaded. But believe they remain in memory when everything is run at once. TODO: Make another run file. 
 
 p.phi_det = angle_opt.p.phi_det;
 
@@ -399,7 +363,7 @@ p.phi_det = angle_opt.p.phi_det;
 % the coefficients.
 l = [0 2 4 6];  % Polar order
 m = [0 0 0 0];  % Azimuthal order
-a = [0.001 -0.0001 0.001 -0.0001];   % Coefficients
+a = [1 0.2 0.1 0.05];   % Coefficients
 
 for ii = 1:numel(l)
     if p.opt_coeff(ii)
@@ -446,24 +410,6 @@ p.kernel=kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 
 p.itmax = 50; %50;                          % maximum number of iterations: about 50-100
 p.skip_projections = 1;                % = 1, for not skipping projections
-
-% %RSD: Watch out for these settings. 
-% p.mode = 1;                      % RSD: 1 for AD, 0 for symbolic
-% p.method = "bilinear";          % RSD: Choose method of interpolation.
-% p.python = 0;
-% p.GPU = 0;
-% 
-% % Defining filenames for results. RSD: Moved down one cell to create
-% % add_name based on mode
-% if p.mode && p.GPU
-%     p.add_name = "AD_GPU";
-% elseif p.mode && p.python
-%     p.add_name = "AD_python";
-% elseif p.mode
-%     p.add_name = "AD";
-% else
-%     p.add_name = "symbolic";
-% end
 
 p.avoid_wrapping = 1;     % avoid wrapping over 2Pi of the angle
 

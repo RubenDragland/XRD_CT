@@ -115,7 +115,7 @@ b = 0; % parameter in Armijo condition (>=0)
 % if f does not satisfy Armijo condition (steplength may be too
 % large) -> decrease steplength until Armijo is satisfied
 if f>f0+a*b*df0
-   while f>f0+a*b*df0
+   while f>f0+a*b*df0 + 1e-8 %RSD: Small numerical term to prevent inf loop. 
        if isinf(f2)|(f<=f2)
            a2 = a; f2 = f;
        end
