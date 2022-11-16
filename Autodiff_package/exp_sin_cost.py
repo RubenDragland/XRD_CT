@@ -158,7 +158,7 @@ def new_model_grad_phi(A, B, theta, phi, I_n, n, simple=True, pos_phi=0):
     Implements the gradient of the cost function with respect to phi.
     Wonder if some wrong assumptions are made.
     """
-    grad_theta = torch.zeros(A.shape)
+    grad_phi = torch.zeros(A.shape)
     if simple:
         SIN_SQUARE_THETA = torch.sin(theta) ** 2
     else:
@@ -166,15 +166,15 @@ def new_model_grad_phi(A, B, theta, phi, I_n, n, simple=True, pos_phi=0):
 
     BP_n = BP(A, B, SIN_SQUARE_THETA, I_n, n)
     for i in range(A.shape[-1]):
-        grad_theta[:, :, i] = (
+        grad_phi[:, :, i] = (
             BP_n
             * B[:, :, i]
             * SIN_SQUARE_THETA[:, :, i]
             * exp_sin_squared(A, B, SIN_SQUARE_THETA)[:, :, i]
-            * dTHETA_dphi_op(SIN_SQUARE_THETA, theta, phi, n, pos_phi=pos_phi)
+            * dTHETA_dphi_op(SIN_SQUARE_THETA, theta, phi, n, pos_phi=pos_phi)[:, :, i]
         )
 
-    return grad_theta
+    return -4 * grad_phi
 
 
 def dTHETA_dtheta_op(SIN_SQUARE_THETA, theta_op, phi_op, n, pos_phi=0):
@@ -287,6 +287,8 @@ print("\n")
 
 SYM_grad_A = torch.zeros((2, 2, 2))
 SYM_grad_B = torch.zeros((2, 2, 2))
+SYM_grad_theta = torch.zeros((2, 2, 2))
+SYM_grad_phi = torch.zeros((2, 2, 2))
 for n in range(r1, r2):  # I_n.shape[0]):
     SYM_grad_A += new_model_grad_A(
         A, B, Theta, Phi, I_n[n], n, simple=simple, pos_phi=pos_phi
@@ -294,13 +296,22 @@ for n in range(r1, r2):  # I_n.shape[0]):
     SYM_grad_B += new_model_grad_B(
         A, B, Theta, Phi, I_n[n], n, simple=simple, pos_phi=pos_phi
     )
+    SYM_grad_theta += new_model_grad_theta(
+        A, B, Theta, Phi, I_n[n], n, simple=simple, pos_phi=pos_phi
+    )
+    SYM_grad_phi += new_model_grad_phi(
+        A, B, Theta, Phi, I_n[n], n, simple=simple, pos_phi=pos_phi
+    )
+
 print("\n")
 print(f"Automatic gradients A:\n{AD_grad_A}\n")
 print(f"Symbolic Grad A:\n{SYM_grad_A}\n")
 print(f"Automatic gradients B:\n{AD_grad_B}\n")
 print(f"Symbolic Grad B:\n{SYM_grad_B}\n")
 print(f"Automatic gradients Theta:\n{AD_grad_theta}\n")
+print(f"Symbolic Grad Theta:\n{SYM_grad_theta}\n")
 print(f"Automatic gradients Phi:\n{AD_grad_phi}\n")
+print(f"Symbolic Grad Phi:\n{SYM_grad_phi}\n")
 
 
 # No importing of matlab packages necessary. Located in matlab environment
