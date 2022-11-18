@@ -59,9 +59,14 @@ def SH_main(
         numOfvoxels,
     )
     if projections == 1:
-        projections = scipy.io.loadmat(rf"{p['projection_filename'][0,0][0]}")[
-            "projection"
-        ][0]
+        try:
+            p_projection_filename = p["projection_filename"][0, 0][0]
+            projections = scipy.io.loadmat(rf"{p_projection_filename}")["projection"][0]
+        except:
+            p_projection_filename = p["projection_filename"]
+            projections = scipy.io.loadmat(rf"{p_projection_filename}")["projection"][0]
+        finally:
+            pass
 
     error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi = SH_forward_backward(
         theta_struct_it,
@@ -114,8 +119,15 @@ def EXPSIN_main(
     """
     Main function of forward and backward propagation for EXP_SIN_SQARED Cost function.
     """
-    p_projection_filename = p["projection_filename"][0, 0][0]
-    projections = scipy.io.loadmat(rf"{p_projection_filename}")["projection"][0]
+    # RSD: Depending on working from python in debugging or running matlab actual reconstructions.
+    try:
+        p_projection_filename = p["projection_filename"][0, 0][0]
+        projections = scipy.io.loadmat(rf"{p_projection_filename}")["projection"][0]
+    except:
+        p_projection_filename = p["projection_filename"]
+        projections = scipy.io.loadmat(rf"{p_projection_filename}")["projection"][0]
+    finally:
+        pass
 
     (
         theta,
@@ -192,8 +204,8 @@ def format_matlab_input_EXPSIN(
     numOfpixels = int(np.squeeze(numOfpixels))
     numOfvoxels = int(np.squeeze(numOfvoxels))
 
-    theta = torch.tensor(theta)
-    phi = torch.tensor(phi)
+    theta = torch.tensor(theta, dtype=torch.float64)
+    phi = torch.tensor(phi, dtype=torch.float64)
     A = torch.tensor(A, dtype=torch.float64)
     B = torch.tensor(B, dtype=torch.float64)
 
@@ -531,15 +543,16 @@ def EXPSIN_AD_cost_function(
 
     q_pp = batch_multiply(Rot_str, unit_q_object)
     COS_THETA = q_pp[:, -1, :, :]
-    COS_THETA = torch.permute(COS_THETA, (0, 2, 1)).unsqueeze(-1)
-    A = A.unsqueeze(0).unsqueeze(-1)
-    B = B.unsqueeze(0).unsqueeze(-1)
+    COS_THETA = torch.permute(COS_THETA, (0, 2, 1))
+    A_sq = torch.squeeze(A).unsqueeze(0).unsqueeze(-1)
+    B_sq = torch.squeeze(B).unsqueeze(0).unsqueeze(-1)
+    # RSD: Have to create a new tensor to keep original variables leaf.
 
     # RSD: Here the new things begin:
 
     SIN_THETA_SQUARED = 1 - COS_THETA**2
 
-    I_hat_tomogram = A**2 * torch.exp(-B * SIN_THETA_SQUARED).to(device)
+    I_hat_tomogram = A_sq**2 * torch.exp(-B_sq * SIN_THETA_SQUARED).to(device)
     I_hat_tomogram = reshape_fortran(
         I_hat_tomogram, (n_proj, ny, nx, nz, numOfsegments)
     )
@@ -662,7 +675,6 @@ def SH_AD_cost_function(
     # RSD: Shape (n_proj, numOfCoeffs, ... )
     block_cos_theta_powers = repmat_cumprod_SH(cos_theta_sh_cut, numOfCoeffs, n_proj)
 
-    logging.debug("Ylm_coef: {}".format(Ylm_coef))
     logging.debug(
         "block_cos_theta_powers shape: {}".format(block_cos_theta_powers.shape)
     )
@@ -676,9 +688,6 @@ def SH_AD_cost_function(
     # RSD: Python vs Matlab indexing. Can become challenging.
     data_synt_vol = torch.permute(torch.abs(sumlm_alm_Ylm**2), (0, 3, 2, 1))
     data_synt_vol = reshape_fortran(data_synt_vol, (n_proj, ny, nx, nz, numOfsegments))
-
-    logging.debug("data_synt_vol shape: {}".format(data_synt_vol.shape))
-    logging.debug("Data type, shape: {}, {}".format(data.dtype, data.shape))
 
     dx = reshape_projections(projections["dx"], n_proj, "dx")
     dy = reshape_projections(projections["dy"], n_proj, "dy")
@@ -696,8 +705,6 @@ def SH_AD_cost_function(
         )
         + dy
     )
-    # xout = np.arange(1, data.size(1) + 1) - np.ceil(data.size(1) / 2) + np.squeeze(dx)
-    # yout = np.arange(1, data.size(0) + 1) - np.ceil(data.size(0) / 2) + np.squeeze(dy)
 
     logging.debug("xout shape: {}".format(xout.shape))
     logging.debug("yout shape: {}".format(yout.shape))
@@ -708,14 +715,6 @@ def SH_AD_cost_function(
 
     logging.debug("data shape: {}".format(data.shape))
 
-    # RSD: This might be funny. Check  if n_proj first then permutations works
-    # aux_diff_poisson = torch.permute(
-    #     torch.sqrt(proj_out_all) - torch.sqrt(data), (0, 3, 1, 2)
-    # ) * torch.from_numpy(
-    #     reshape_projections(projections["window_mask"], n_proj, "window_mask")
-    # ).to(
-    #     device
-    # )
     aux_diff_poisson = (torch.sqrt(proj_out_all) - torch.sqrt(data)) * torch.from_numpy(
         reshape_projections(projections["window_mask"], n_proj, "window_mask")[
             :, :, :, np.newaxis
@@ -826,7 +825,6 @@ def arb_projection(tomo_obj_all, X, Y, Z, R, p, xout, yout):  # Assume numpy
         # RSD: No need to unsqueeze here. Have batch, channels, height, width
         # proj_out_all = torch.unsqueeze(proj_out_all, 0)
         proj_out_all = torch.permute(proj_out_all, (0, 3, 1, 2))
-        logging.debug(f"proj_out_all ready conv: {proj_out_all[0,0,:,:]}")
         proj_out_all = torch.nn.functional.conv2d(
             proj_out_all, filter_2D, padding="same", groups=nPages
         )
@@ -947,7 +945,7 @@ def batch_multiply(A: torch.tensor, B: torch.tensor):
         if len(A.shape) == 1:
             A = A.unsqueeze(0)  # RSD: Add batch dimension
 
-        C = torch.einsum("ij,njkm->nikm", A, B)  # RSD: Works for a_temp as well?
+        C = torch.einsum("ij,njkm->nikm", A, B)
     else:
         raise ValueError(
             "A and B have incompatible shapes. Please implement desired einsum"
@@ -980,7 +978,7 @@ if __name__ == "__main__":
     if new_model:
 
         workspace = scipy.io.loadmat(
-            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\new_model_python_workspace.mat"
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\new_model_retry.mat"
         )
 
         theta = workspace["theta_struct"]
