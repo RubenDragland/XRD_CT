@@ -184,16 +184,40 @@ def dTHETA_dtheta_op(SIN_SQUARE_THETA, theta_op, phi_op, n, pos_phi=0):
     beta = torch.tensor(beta)
     pos_phi = torch.tensor(pos_phi)
 
-    dcos_dtheta = torch.cos(pos_phi) * (
-        torch.cos(theta_op) * torch.cos(phi_op) * torch.cos(beta)
-        - torch.sin(theta_op) * torch.sin(beta)
-    ) + torch.sin(pos_phi) * (
-        torch.cos(theta_op) * torch.cos(phi_op) * torch.sin(alpha) * torch.cos(beta)
-        + torch.cos(theta_op) * torch.sin(phi_op) * torch.cos(alpha)
-        + torch.sin(theta_op) * torch.cos(beta) * torch.sin(alpha)
+    # dcos_dtheta = torch.cos(pos_phi) * (
+    #     torch.cos(theta_op) * torch.cos(phi_op) * torch.cos(beta)
+    #     - torch.sin(theta_op) * torch.sin(beta)
+    # ) + torch.sin(pos_phi) * (
+    #     torch.cos(theta_op) * torch.cos(phi_op) * torch.sin(alpha) * torch.cos(beta)
+    #     + torch.cos(theta_op) * torch.sin(phi_op) * torch.cos(alpha)
+    #     + torch.sin(theta_op) * torch.cos(beta) * torch.sin(alpha)
+    # )
+
+    # grad = (1 / torch.sqrt(SIN_SQUARE_THETA)) * dcos_dtheta
+
+    COS_THETA = (
+        torch.sin(theta_op) * torch.cos(phi_op) * torch.cos(beta)
+        + torch.cos(theta_op) * torch.sin(beta)
+    ) * torch.cos(pos_phi)
+
+    x_s = torch.cos(beta) * torch.cos(pos_phi) + torch.sin(alpha) * torch.cos(
+        beta
+    ) * torch.sin(pos_phi)
+    y_s = torch.cos(alpha) * torch.sin(pos_phi)
+    z_s = torch.sin(beta) * torch.cos(pos_phi) - torch.cos(beta) * torch.sin(
+        alpha
+    ) * torch.sin(pos_phi)
+
+    grad = (
+        (1 / torch.sin(torch.arccos(COS_THETA)))
+        * (
+            z_s * torch.sin(theta_op)
+            - (x_s * torch.cos(phi_op))
+            + y_s * torch.sin(phi_op)
+        )
+        * torch.cos(theta_op)
     )
 
-    grad = (1 / torch.sqrt(SIN_SQUARE_THETA)) * dcos_dtheta
     return grad
 
 
@@ -203,14 +227,33 @@ def dTHETA_dphi_op(SIN_SQUARE_THETA, theta_op, phi_op, n, pos_phi=0):
     beta = torch.tensor(beta)
     pos_phi = torch.tensor(pos_phi)
 
-    dcos_dphi = torch.cos(pos_phi) * (
-        -torch.sin(theta_op) * torch.sin(phi_op) * torch.cos(beta)
-    ) + torch.sin(pos_phi) * (
-        -torch.sin(phi_op) * torch.sin(phi_op) * torch.sin(alpha) * torch.cos(beta)
-        + torch.sin(theta_op) * torch.cos(phi_op) * torch.cos(alpha)
-    )
+    # dcos_dphi = torch.cos(pos_phi) * (
+    #     -torch.sin(theta_op) * torch.sin(phi_op) * torch.cos(beta)
+    # ) + torch.sin(pos_phi) * (
+    #     -torch.sin(phi_op) * torch.sin(phi_op) * torch.sin(alpha) * torch.cos(beta)
+    #     + torch.sin(theta_op) * torch.cos(phi_op) * torch.cos(alpha)
+    # )
 
-    grad = (1 / torch.sqrt(SIN_SQUARE_THETA)) * dcos_dphi
+    # grad = (1 / torch.sqrt(SIN_SQUARE_THETA)) * dcos_dphi
+
+    COS_THETA = (
+        torch.sin(theta_op) * torch.cos(phi_op) * torch.cos(beta)
+        + torch.cos(theta_op) * torch.sin(beta)
+    ) * torch.cos(pos_phi)
+
+    x_s = torch.cos(beta) * torch.cos(pos_phi) + torch.sin(alpha) * torch.cos(
+        beta
+    ) * torch.sin(pos_phi)
+    y_s = torch.cos(alpha) * torch.sin(pos_phi)
+    z_s = torch.sin(beta) * torch.cos(pos_phi) - torch.cos(beta) * torch.sin(
+        alpha
+    ) * torch.sin(pos_phi)
+
+    grad = (
+        (1 / torch.sin(torch.arccos(COS_THETA)))
+        * torch.sin(theta_op)
+        * (x_s * torch.sin(phi_op) - y_s * torch.cos(phi_op))
+    )
 
     return grad
 

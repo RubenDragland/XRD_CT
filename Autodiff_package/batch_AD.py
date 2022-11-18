@@ -58,6 +58,10 @@ def SH_main(
         numOfCoeffs,
         numOfvoxels,
     )
+    if projections == 1:
+        projections = scipy.io.loadmat(rf"{p['projection_filename'][0,0][0]}")[
+            "projection"
+        ][0]
 
     error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi = SH_forward_backward(
         theta_struct_it,
@@ -86,6 +90,124 @@ def SH_main(
 
     return format_matlab_output_SH(
         error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi
+    )
+
+
+def EXPSIN_main(
+    theta,
+    phi,
+    A,
+    B,
+    unit_q_beamline,
+    p,
+    X,
+    Y,
+    Z,
+    ny,
+    nx,
+    nz,
+    numOfsegments,
+    numOfpixels,
+    numOfvoxels,
+    find_grad,
+):
+    """
+    Main function of forward and backward propagation for EXP_SIN_SQARED Cost function.
+    """
+    p_projection_filename = p["projection_filename"][0, 0][0]
+    projections = scipy.io.loadmat(rf"{p_projection_filename}")["projection"][0]
+
+    (
+        theta,
+        phi,
+        A,
+        B,
+        ny,
+        nx,
+        nz,
+        numOfsegments,
+        numOfpixels,
+        numOfvoxels,
+    ) = format_matlab_input_EXPSIN(
+        theta,
+        phi,
+        A,
+        B,
+        ny,
+        nx,
+        nz,
+        numOfsegments,
+        numOfpixels,
+        numOfvoxels,
+    )
+
+    (
+        error_norm,
+        AD_grad_A,
+        AD_grad_B,
+        AD_grad_theta,
+        AD_grad_phi,
+    ) = EXPSIN_forward_backward(
+        theta,
+        phi,
+        A,
+        B,
+        projections,
+        unit_q_beamline,
+        p,
+        X,
+        Y,
+        Z,
+        ny,
+        nx,
+        nz,
+        numOfsegments,
+        numOfpixels,
+        numOfvoxels,
+        find_grad,
+    )
+
+    return format_matlab_output_EXPSIN(
+        error_norm, AD_grad_A, AD_grad_B, AD_grad_theta, AD_grad_phi
+    )
+
+
+def format_matlab_input_EXPSIN(
+    theta,
+    phi,
+    A,
+    B,
+    ny,
+    nx,
+    nz,
+    numOfsegments,
+    numOfpixels,
+    numOfvoxels,
+):
+
+    ny = int(np.squeeze(ny))
+    nx = int(np.squeeze(nx))
+    nz = int(np.squeeze(nz))
+    numOfsegments = int(np.squeeze(numOfsegments))
+    numOfpixels = int(np.squeeze(numOfpixels))
+    numOfvoxels = int(np.squeeze(numOfvoxels))
+
+    theta = torch.tensor(theta)
+    phi = torch.tensor(phi)
+    A = torch.tensor(A, dtype=torch.float64)
+    B = torch.tensor(B, dtype=torch.float64)
+
+    return (
+        theta,
+        phi,
+        A,
+        B,
+        ny,
+        nx,
+        nz,
+        numOfsegments,
+        numOfpixels,
+        numOfvoxels,
     )
 
 
@@ -137,6 +259,33 @@ def format_matlab_input_SH(
         numOfpixels,
         numOfCoeffs,
         numOfvoxels,
+    )
+
+
+# RSD: Bit lazy to copy so much code.
+def format_matlab_output_EXPSIN(
+    error_norm, AD_grad_A, AD_grad_B, AD_grad_theta, AD_grad_phi
+):
+    error_norm = np.float64(error_norm)
+    if AD_grad_A is not None:
+        AD_grad_A = AD_grad_A.cpu().detach().numpy()
+        AD_grad_B = AD_grad_B.cpu().detach().numpy()
+    else:
+        AD_grad_A = np.array([])
+        AD_grad_B = np.array([])
+    if AD_grad_theta is not None:
+        AD_grad_theta = AD_grad_theta.cpu().detach().numpy()
+        AD_grad_phi = AD_grad_phi.cpu().detach().numpy()
+    else:
+        AD_grad_theta = np.array([])
+        AD_grad_phi = np.array([])
+
+    return (
+        error_norm,
+        AD_grad_A,
+        AD_grad_B,
+        AD_grad_theta,
+        AD_grad_phi,
     )
 
 
@@ -195,6 +344,67 @@ def reshape_projections(proj, n_proj, key="data"):
         projections[i] = proj[i]
 
     return projections
+
+
+def EXPSIN_forward_backward(
+    theta,
+    phi,
+    A,
+    B,
+    projections,
+    unit_q_beamline,
+    p,
+    X,
+    Y,
+    Z,
+    ny,
+    nx,
+    nz,
+    numOfsegments,
+    numOfpixels,
+    numOfvoxels,
+    find_grad,
+):
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+
+    find_grad = bool(find_grad)
+
+    theta.requires_grad_(find_grad).to(device)
+    phi.requires_grad_(find_grad).to(device)
+    A.requires_grad_(find_grad).to(device)
+    B.requires_grad_(find_grad).to(device)
+    torch.autograd.set_detect_anomaly(True)
+
+    (
+        error_norm,
+        AD_grad_A,
+        AD_grad_B,
+        AD_grad_theta,
+        AD_grad_phi,
+    ) = EXPSIN_AD_cost_function(
+        theta,
+        phi,
+        A,
+        B,
+        projections,
+        unit_q_beamline,
+        p,
+        X,
+        Y,
+        Z,
+        ny,
+        nx,
+        nz,
+        numOfsegments,
+        numOfpixels,
+        numOfvoxels,
+        find_grad,
+    )
+
+    return error_norm, AD_grad_A, AD_grad_B, AD_grad_theta, AD_grad_phi
 
 
 def SH_forward_backward(
@@ -265,6 +475,122 @@ def SH_forward_backward(
     return error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi
 
 
+def EXPSIN_AD_cost_function(
+    theta,
+    phi,
+    A,
+    B,
+    projections,
+    unit_q_beamline,
+    p,
+    X,
+    Y,
+    Z,
+    ny,
+    nx,
+    nz,
+    numOfsegments,
+    numOfpixels,
+    numOfvoxels,
+    find_grad,
+):
+    # RSD: This part could be in a common function...
+    device = theta.device
+    n_proj = len(projections)  # Hope so.
+    data = torch.from_numpy(
+        reshape_projections(projections["data"], n_proj, key="data")
+    ).to(device)
+    Rot_exp_now = np.array(
+        reshape_projections(projections["Rot_exp"], n_proj, key="Rot_exp")
+    )
+
+    unit_q_object = torch.tensor(
+        np.transpose(Rot_exp_now, (0, 2, 1)) @ unit_q_beamline
+    ).to(device)
+
+    sin_theta = reshape_fortran(torch.sin(theta), (1, 1, numOfvoxels))
+    cos_theta = reshape_fortran(torch.cos(theta), (1, 1, numOfvoxels))
+    sin_phi = reshape_fortran(torch.sin(phi), (1, 1, numOfvoxels))
+    cos_phi = reshape_fortran(torch.cos(phi), (1, 1, numOfvoxels))
+
+    zeros_struct = torch.zeros((1, 1, numOfvoxels)).to(device)
+
+    Rot_str = torch.stack(
+        [
+            cos_theta * cos_phi,
+            cos_theta * sin_phi,
+            -sin_theta,
+            -sin_phi,
+            cos_phi,
+            zeros_struct,
+            sin_theta * cos_phi,
+            sin_theta * sin_phi,
+            cos_theta,
+        ]
+    ).reshape((3, 3, numOfvoxels))
+
+    q_pp = batch_multiply(Rot_str, unit_q_object)
+    COS_THETA = q_pp[:, -1, :, :]
+    COS_THETA = torch.permute(COS_THETA, (0, 2, 1)).unsqueeze(-1)
+    A = A.unsqueeze(0).unsqueeze(-1)
+    B = B.unsqueeze(0).unsqueeze(-1)
+
+    # RSD: Here the new things begin:
+
+    SIN_THETA_SQUARED = 1 - COS_THETA**2
+
+    I_hat_tomogram = A**2 * torch.exp(-B * SIN_THETA_SQUARED).to(device)
+    I_hat_tomogram = reshape_fortran(
+        I_hat_tomogram, (n_proj, ny, nx, nz, numOfsegments)
+    )
+
+    dx = reshape_projections(projections["dx"], n_proj, "dx")
+    dy = reshape_projections(projections["dy"], n_proj, "dy")
+
+    xout = (
+        np.expand_dims(
+            np.arange(1, data.size(2) + 1) - np.ceil(data.size(2) / 2), axis=0
+        )
+        + dx
+    )
+    yout = (
+        np.expand_dims(
+            np.arange(1, data.size(1) + 1) - np.ceil(data.size(1) / 2), axis=0
+        )
+        + dy
+    )
+
+    proj_out_all = arb_projection(I_hat_tomogram, X, Y, Z, Rot_exp_now, p, xout, yout)
+
+    aux_diff_poisson = (torch.sqrt(proj_out_all) - torch.sqrt(data)) * torch.from_numpy(
+        reshape_projections(projections["window_mask"], n_proj, "window_mask")[
+            :, :, :, np.newaxis
+        ]
+    ).to(device)
+
+    aux_diff_poisson = torch.permute(aux_diff_poisson, (0, 2, 3, 1))
+    error_norm = 2 * torch.sum(aux_diff_poisson**2, dim=(3, 2, 1, 0)) / numOfpixels
+
+    if not find_grad:
+        return error_norm, None, None, None, None
+
+    try:
+        error_norm.backward()  # Backpropate gradient
+    except:
+        AD_grad_A = None
+        AD_grad_B = None
+        AD_grad_theta = None
+        AD_grad_phi = None
+    else:
+        AD_grad_A = A.grad
+        AD_grad_B = B.grad
+        AD_grad_theta = theta.grad
+        AD_grad_phi = phi.grad
+
+    finally:
+        return error_norm, AD_grad_A, AD_grad_B, AD_grad_theta, AD_grad_phi
+
+
 def SH_AD_cost_function(
     theta_struct,
     phi_struct,
@@ -287,7 +613,9 @@ def SH_AD_cost_function(
     numOfvoxels,
 ):
     device = theta_struct.device
-    n_proj = projections.shape[0]  # RSD: Check this. Should be 255 but might be 1
+    n_proj = len(
+        projections
+    )  # projections.shape[0]  # RSD: Check this. Should be 255 but might be 1
     # RSD: Want data as 3D tensor. Therefore no reshape.
 
     data = torch.from_numpy(
@@ -646,53 +974,110 @@ def repmat_cumprod_SH(cos_theta_sh_cut, numOfCoeffs, n_proj):
 
 
 if __name__ == "__main__":
-    # Test code
-    workspace = scipy.io.loadmat(
-        r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\orientation_python_workspace.mat"
-    )
-    theta_struct_it = workspace["theta_struct"]
-    phi_struct_it = workspace["phi_struct"]
-    a_temp_it = workspace["a_temp"]
-    ny = workspace["ny"]
-    nx = workspace["nx"]
-    nz = workspace["nz"]
-    numOfsegments = workspace["numOfsegments"]
-    current_projection = workspace["projection"][0]  # [2]
-    p = workspace["p"]
-    X = workspace["X"]
-    Y = workspace["Y"]
-    Z = workspace["Z"]
-    numOfpixels = workspace["numOfpixels"]
-    unit_q_beamline = workspace["unit_q_beamline"]
-    Ylm_coef = workspace["Ylm_coef"]
-    find_coefficients = workspace["find_coefficients"]
-    find_orientation = workspace["find_orientation"]
-    numOfCoeffs = workspace["numOfCoeffs"]
-    numOfvoxels = workspace["numOfvoxels"]
 
-    tic = time.time()
+    new_model = 1
 
-    SH_main(
-        theta_struct_it,
-        phi_struct_it,
-        a_temp_it,
-        ny,
-        nx,
-        nz,
-        numOfsegments,
-        current_projection,
-        p,
-        X,
-        Y,
-        Z,
-        numOfpixels,
-        unit_q_beamline,
-        Ylm_coef,
-        find_coefficients,
-        find_orientation,
-        numOfCoeffs,
-        numOfvoxels,
-        find_grad=True,
-    )
-    tac = time.time()
-    print(f"Time elapsed: {tac - tic}")
+    if new_model:
+
+        workspace = scipy.io.loadmat(
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\new_model_python_workspace.mat"
+        )
+
+        theta = workspace["theta_struct"]
+        phi = workspace["phi_struct"]
+        A = workspace["A"]
+        B = workspace["B"]
+        unit_q_beamline = workspace["unit_q_beamline"]
+        p = workspace["p"]
+        X = workspace["X"]
+        Y = workspace["Y"]
+        Z = workspace["Z"]
+        ny = workspace["ny"]
+        nx = workspace["nx"]
+        nz = workspace["nz"]
+        numOfsegments = workspace["numOfsegments"]
+        numOfpixels = workspace["numOfpixels"]
+        numOfvoxels = workspace["numOfvoxels"]
+        find_grad = workspace["find_grad"]
+
+        tic = time.time()
+
+        EXPSIN_main(
+            theta,
+            phi,
+            A,
+            B,
+            unit_q_beamline,
+            p,
+            X,
+            Y,
+            Z,
+            ny,
+            nx,
+            nz,
+            numOfsegments,
+            numOfpixels,
+            numOfvoxels,
+            find_grad,
+        )
+
+        tac = time.time()
+        print("Time elapsed: {}".format(tac - tic))
+
+    else:
+        # Test code
+        # Workspace has to be updated with p.projection_filename.
+        workspace = scipy.io.loadmat(
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\workspace_batch_python_a0.mat"
+        )
+        theta_struct_it = workspace["theta_struct"]
+        phi_struct_it = workspace["phi_struct"]
+        a_temp_it = workspace["a_temp"]
+        ny = workspace["ny"]
+        nx = workspace["nx"]
+        nz = workspace["nz"]
+        numOfsegments = workspace["numOfsegments"]
+        current_projection = (
+            1  # workspace["projection"][0]  # [2] Load from disk took additional 300ms.
+        )
+        p = workspace["p"]
+        # p[
+        #     "projection_filename"
+        # ] = r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Validation_periodic_filter1_3cube_4off_0align_stripped.mat"
+        X = workspace["X"]
+        Y = workspace["Y"]
+        Z = workspace["Z"]
+        numOfpixels = workspace["numOfpixels"]
+        unit_q_beamline = workspace["unit_q_beamline"]
+        Ylm_coef = workspace["Ylm_coef"]
+        find_coefficients = workspace["find_coefficients"]
+        find_orientation = workspace["find_orientation"]
+        numOfCoeffs = workspace["numOfCoeffs"]
+        numOfvoxels = workspace["numOfvoxels"]
+
+        tic = time.time()
+
+        SH_main(
+            theta_struct_it,
+            phi_struct_it,
+            a_temp_it,
+            ny,
+            nx,
+            nz,
+            numOfsegments,
+            current_projection,
+            p,
+            X,
+            Y,
+            Z,
+            numOfpixels,
+            unit_q_beamline,
+            Ylm_coef,
+            find_coefficients,
+            find_orientation,
+            numOfCoeffs,
+            numOfvoxels,
+            find_grad=True,
+        )
+        tac = time.time()
+        print(f"Time elapsed: {tac - tic}")
