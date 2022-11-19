@@ -7,6 +7,7 @@ import h5py
 import scipy.io
 from celluloid import Camera
 import torch
+from scipy.optimize import curve_fit
 
 import matplotlib.gridspec as gridspec
 from mpl_toolkits.mplot3d import Axes3D
@@ -42,6 +43,7 @@ mpl.rcParams["axes.prop_cycle"] = cycler(
 )  # From: https://www.datylon.com/blog/data-visualization-for-colorblind-readers  and https://ranocha.de/blog/colors/ , respectively
 # cycler(color=plt.style.library["tab10"]["axes.prop_cycle"].by_key()["color"])
 # ggplot seaborn-colorblind
+DEFAULT_FIGSIZE = (8, 6)
 w = 1
 mpl.rcParams["axes.linewidth"] = w
 mpl.rcParams["xtick.major.width"] = w
@@ -154,6 +156,178 @@ XRDCT_palette_cmp = get_continuous_cmap(
     # Might be a good choice. Need consultants # ["#F05039", "#E57A77", "#EEBAB4", "#1F449C", "#3D65A5", "#7CA1CC", "#A8B6CC"]
     # # [     "#E57A77","#EEBAB4","#7CA1CC",]
 )
+
+
+############# DATA ANAL SECTION ####################
+
+
+def gaussian(x, A, mu, sig):
+    return (
+        A
+        / (np.sqrt(2 * np.pi) * sig)
+        * np.exp(-np.power(x - mu, 2.0) / (2 * np.power(sig, 2.0)))
+    )
+
+
+def find_vmin_vmax(AD, symbolic, std_c):
+    """
+    Determines lower and upper bounds for plots given input data
+    """
+    val1_lower = np.mean(AD) - std_c * np.std(AD)
+    val2_lower = np.mean(symbolic) - std_c * np.std(symbolic)
+
+    val1_upper = np.mean(AD) + std_c * np.std(AD)
+    val2_upper = np.mean(symbolic) + std_c * np.std(symbolic)
+
+    vmin = min(val1_lower, val2_lower)
+    vmax = max(val1_upper, val2_upper)
+    return vmin, vmax
+
+
+def plot_SH_aligned_distribution(
+    AD,
+    symbolic,
+    dummy_values,
+    slice,
+    attribute,
+    title="SH ",
+    bins=100,
+    save=False,
+    save_name="SH_aligned_distribution_",
+    std_c=2,
+    DPI=100,
+    size_fraction=1.2,
+    shareaxis=True,
+):
+
+    if attribute == "coeffs":
+        keys = ["a0", "a2", "a4", "a6"]
+        titles = keys
+        rows, cols = 2, 2
+        title += "Coefficients"
+        save_name += "coeffs"
+    elif attribute == "angles":
+        keys = ["theta", "phi"]
+        titles = [r"$\theta$", r"$\varphi$"]
+        rows, cols = 1, 2
+        title += "Orientation"
+        save_name += "angles"
+
+    slice1, slice2 = slice
+    ind = np.arange(slice1, slice2)
+    X, Y, Z = np.meshgrid(ind, ind, ind)
+
+    size1, size2 = (
+        cols / size_fraction * DEFAULT_FIGSIZE[0],
+        rows / size_fraction * DEFAULT_FIGSIZE[1],
+    )
+
+    fig, axs = plt.subplots(rows, cols, figsize=(size1, size2), dpi=DPI)
+    for i, (ax, key) in enumerate(zip(np.reshape(axs, -1), keys)):
+
+        if attribute == "orientation" and shareaxis:
+            vmin, vmax = 0, np.pi
+        else:
+            vmin, vmax = find_vmin_vmax(AD[key][X, Y, Z], symbolic[key][X, Y, Z], std_c)
+
+        AD_vals = AD[key][X, Y, Z].flatten()
+        symbolic_vals = symbolic[key][X, Y, Z].flatten()
+
+        ax.set_xlabel("Value")
+        ax.set_ylabel("Count")
+        ax.set_title(titles[i])
+
+        AD_ax = ax.hist(
+            AD_vals,
+            label="AD",
+            alpha=0.69,
+            bins=bins,
+            range=(vmin, vmax),
+        )
+        SYM_ax = ax.hist(
+            symbolic_vals,
+            label="SYM",
+            alpha=0.69,
+            bins=bins,
+            range=(vmin, vmax),
+        )
+
+        ax.axvline(
+            x=dummy_values[i],
+            color="black",
+            linestyle="--",
+            alpha=0.69,
+            label=f"Solution: {dummy_values[i]:.2f}",
+        )
+
+        AD_popt, cov1 = curve_fit(gaussian, AD_ax[1][:-1], AD_ax[0])
+        SYM_popt, cov2 = curve_fit(gaussian, SYM_ax[1][:-1], SYM_ax[0])
+
+        AD_fit = gaussian(AD_ax[1], *AD_popt)
+        SYM_fit = gaussian(SYM_ax[1], *SYM_popt)
+
+        AD_color = AD_ax[-1].patches[0].get_facecolor()
+        ax.plot(
+            AD_ax[1],
+            AD_fit,
+            color=AD_color,
+            alpha=1,
+            label="AD $\mu$={:.2f}, $\sigma$={:.2f}".format(*AD_popt[1:]),
+        )
+
+        SYM_color = SYM_ax[-1].patches[0].get_facecolor()
+        ax.plot(
+            SYM_ax[1],
+            SYM_fit,
+            color=SYM_color,
+            alpha=1,
+            label="SYM $\mu$={:.2f}, $\sigma$={:.2f}".format(*SYM_popt[1:]),
+        )
+
+        ax.legend(loc="upper left")
+
+    fig.suptitle(title)
+
+    if save:
+        fig.savefig(r"thesis_plots/" + save_name + ".svg")
+    plt.show()
+    return
+
+
+def plot_loss_curves(
+    data_dict,
+    title="Loss Curve",
+    save=False,
+    save_name="loss_curves",
+    DPI=100,
+    size_fraction=1.2,
+):
+    """
+    Plots convergence curves for the given data_dict
+    """
+    fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE, dpi=DPI)
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel("Loss")
+    ax.set_title(title)
+
+
+
+    for key, value in data_dict.items():
+        timing = 0
+        ax.plot(
+            value[0],
+            label=f"{key} {np.squeeze(value[0][-1]):.2f} in {timing}s",
+        )
+
+    ax.legend(loc="upper right")
+
+    if save:
+        fig.savefig(r"thesis_plots/" + save_name + ".svg")
+    plt.show()
+    return
+
+
+###########################################
 
 
 def plot_visualisation_grads(
@@ -679,69 +853,6 @@ def plot_result_heatmap(tt_result_AD, tt_result_symbolic, title, slice=None):
     ax.set_title(title)
     fig.savefig(title + ".svg")
     plt.show()
-
-
-def plot_coeffs_distribution(
-    fasit_rec, AD_rec, sym_rec, title="", bins=30, limits=(0, 1)
-):
-    fasit_params = [
-        fasit_rec.get_1D_array(fasit_rec.params[p])
-        for p in range(len(fasit_rec.params))
-    ]
-    AD_params = [
-        AD_rec.get_1D_array(AD_rec.params[p]) for p in range(len(AD_rec.params))
-    ]
-    sym_params = [
-        sym_rec.get_1D_array(sym_rec.params[p]) for p in range(len(sym_rec.params))
-    ]
-
-    titles = ["a0", "a2", "a4", "a6", r"\u03B8", r"\u03C6"]
-
-    fig, axs = plt.subplots(2, 2)
-    for i, ax in enumerate(np.reshape(axs, -1)):
-
-        AD_mean = np.mean(AD_params[i])
-        AD_std = np.std(AD_params[i])
-        sym_mean = np.mean(sym_params[i])
-        sym_std = np.std(sym_params[i])
-
-        limits_AD = (AD_mean - 5 * AD_std, AD_mean + 3 * AD_std)
-        limits_sym = (sym_mean - 5 * sym_std, sym_mean + 3 * sym_std)
-        limits = (min(limits_AD[0], limits_sym[0]), max(limits_AD[1], limits_sym[1]))
-
-        ax.set_xlabel("Value")
-        ax.set_ylabel("Counts")
-        ax.set_title(titles[i])
-        ax.hist(
-            fasit_params[i],
-            label="Solution",
-            alpha=0.69,
-            bins=bins,
-            range=limits,
-            # stacked=True,
-        )
-        ax.hist(
-            AD_params[i],
-            label="Automatic",
-            alpha=0.69,
-            bins=bins,
-            range=limits,
-            # stacked=True,
-        )
-        ax.hist(
-            sym_params[i],
-            label="Symbolic",
-            alpha=0.69,
-            bins=bins,
-            range=limits,
-            # stacked=True,
-        )
-        ax.legend(loc="upper left")
-
-    fig.suptitle(title)
-    fig.savefig(title + ".svg")
-    plt.show()
-    return
 
 
 def plot_angles_distribution(

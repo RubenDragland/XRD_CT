@@ -15,20 +15,14 @@ class TensorTomographyReconstruction:
         else:
             self.key = "s"
             self.error_data = self.mat["e"]
-            self.timing_data = self.mat["timing"]
-
-            try:
-                self.convergence_curve = self.mat["E"]
-            except:
-                self.convergence_curve = None
-            finally:
-                pass
+            self.timing_data = np.squeeze(self.mat["timing"][0])
+            self.tot_time = np.squeeze(self.mat["tot_time"][0])
+            self.loss_curve = np.squeeze(self.mat["Err_hist"])
 
         self.mask = self.mat[self.key]["mask3D"][0, 0]
-        # Possibly not completely correct; the mask.
         self.theta = self.mat[self.key]["theta"][0, 0][0, 0][0] % (np.pi)
         self.phi = self.mat[self.key]["phi"][0, 0][0, 0][0] % (np.pi)
-        self.shape = self.mask.shape  # Shape of the reconstructed volume
+        self.shape = self.mask.shape
         self.format_0_pi()
 
         return
