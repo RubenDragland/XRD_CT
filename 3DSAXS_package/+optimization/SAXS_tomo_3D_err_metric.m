@@ -470,6 +470,8 @@ end
 
 E_temp = E;
 if find_grad
+    global Err_hist
+    Err_hist = [Err_hist, E];
     e = optimization.errorplot(E);
     iteration = length(e);
     fprintf('*************************************************** \nIteration %d \n', iteration);

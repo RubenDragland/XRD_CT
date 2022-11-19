@@ -207,8 +207,47 @@ z = (1:N(3)) - ceil(N(3)/2);
 %%% RSD: Change of order finished
 
 %RSD: Implement if elseif else with the options being optimise all, orientation, coefficients, or not find grad
-
-if p.python && find_grad
+if p.python && find_grad && p.batch
+    
+    % RSD: Make path automatic. 
+    P = py.sys.path;
+    search_path = [p.parent '/Autodiff_package'];
+    if count(P,search_path) == 0
+        insert(P,int32(0),search_path);
+    end
+    
+    py.importlib.import_module("batch_AD");
+    
+    theta_struct_it = py.numpy.array(theta_struct);
+    phi_struct_it = py.numpy.array(phi_struct);
+    a_temp_it = py.numpy.array(a_temp);
+    Xi = py.numpy.array(X);
+    Yi = py.numpy.array(Y);
+    Zi = py.numpy.array(Z);
+    unit_q_beamline_i = py.numpy.array(unit_q_beamline);
+    Ylm_coef_i = py.numpy.array(Ylm_coef);
+    
+    fields = {'diode', 'par', 'fnames', 'integ'};
+    %batch_projection = rmfield(projection, fields);
+    batch_projection = 1; %p.projection_filename; % batch_projection(1);
+    
+    batch_results = py.batch_AD.SH_main(theta_struct_it, phi_struct_it, a_temp_it, ny, nx, nz, numOfsegments, batch_projection, p, Xi, Yi, Zi, numOfpixels, unit_q_beamline_i, Ylm_coef_i, find_coefficients, find_orientation, numOfCoeffs, numOfvoxels, find_grad);
+    
+    E = batch_results{1};
+    
+    if ~isempty( double(batch_results{2}) )
+        AD_grad_coeff = double(batch_results{2});
+        grad_a = grad_a + reshape( permute(AD_grad_coeff, [3,2,1]) , ny, nx, nz, numOfCoeffs) ; 
+    end
+    if ~isempty( double(batch_results{3}) )
+        AD_grad_theta = double( batch_results{3});
+        AD_grad_phi = double (batch_results{4} );
+        grad_theta_struct = grad_theta_struct + reshape( permute(AD_grad_theta, [3,2,1]), ny, nx, nz); 
+        grad_phi_struct = grad_phi_struct + reshape( permute(AD_grad_phi, [3,2,1]), ny,nx,nz);
+    end
+    
+    
+elseif p.python && find_grad
     
     P = py.sys.path;
     if count(P,'C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Autodiff_package') == 0
@@ -385,6 +424,8 @@ end            %RSD: Or possibly escape the if-statement here.
 
 E_temp = E;
 if find_grad
+    global Err_hist;
+    Err_hist = [Err_hist, E];
     e = optimization.errorplot(E);
     iteration = length(e);
     fprintf('*************************************************** \nIteration %d \n', iteration);
@@ -529,7 +570,6 @@ if find_coefficients
     end
 end
 
-%RSD: Hack to prevent infinite line search. Do not know why it occurs. 
 
 if find_grad
     % gradient output vector

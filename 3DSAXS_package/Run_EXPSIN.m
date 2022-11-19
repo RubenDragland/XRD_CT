@@ -1,0 +1,137 @@
+function [finish] = Run_EXPSIN( parent, sample_name, filter, varargin  ) % RSD: Figure out this. 
+
+%RSD
+% varargin: itmax, A_init, B_init; theta_init, phi_init
+default_it = 100;
+default_A = 1e-4;
+default_B = 1e-4;
+default_theta = pi/4;
+default_phi = pi/4;
+if nargin > 6
+    it_max = varargin{1};
+    A_init = varargin{2};
+    B_init = varargin{3};
+    theta_init = varargin{4};
+    phi_init = varargin{5};    
+elseif nargin >4
+    it_max = varargin{1};
+    A_init = varargin{2};
+    B_init = varargin{3};
+    theta_init = default_theta;
+    phi_init = default_phi;  
+elseif nargin > 3
+    it_max = varargin{1};
+    A_init = default_A;
+    B_init = default_B;
+    theta_init = default_theta;
+    phi_init = default_phi;  
+else
+    it_max = default_it;
+    A_init = default_A;
+    B_init = default_B;
+    theta_init = default_theta;
+    phi_init = default_phi;    
+end
+% EDIT:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%parent = cd; % RSD: Fix this to it is universal?
+base_path = '/Data sets/';  % = '~/Data10/' for online analysis,
+base_path = [parent base_path] ;
+p.parent = parent;
+                                            % provide the path for offline analysis
+                                            % Ex: '/das/work/p16/p16649/'
+p.add_name = '';        % additional name the optimizations: = [ ] if not needed
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%RSD: How much of this is necessary?
+p.sample_name = sample_name;
+p.optimization_output_path = fullfile(base_path,sprintf('/analysis/SASTT/%s/SH/%s/optimization_output/', sample_name, p.add_name));
+if ~exist(p.optimization_output_path, 'file')
+    mkdir(p.optimization_output_path);
+end
+p.figures = fullfile(base_path,sprintf('/analysis/SASTT/%s/SH/%s/figures/', sample_name, p.add_name));
+if ~exist(p.figures, 'file')
+    mkdir(p.figures);
+end
+p.results = fullfile(base_path,sprintf('/analysis/SASTT/%s/SH/%s/results/', sample_name, p.add_name));
+if ~exist(p.results, 'file')
+    mkdir(p.results);
+end
+
+filename = sprintf('%s%s.mat', base_path, sample_name);
+fprintf('****** Step 2.1 Load the data ****** \n')
+fprintf('Loading %s\n',filename)
+load(filename);
+p.projection_filename = filename;
+
+E = [];%12.4;   % X-ray energy in keV, needed for Ewald sphere correction, leave 
+                % empty and curvature of Ewald sphere will be ignored 
+                
+
+% %%% 2D plot characteristics (the data) %%%
+% Half of the Angular segments in integration
+p.numsegments = length(projection(1).integ.phi_det)/2;
+
+% read the phi_det from integ
+% consider only the first half because of the symmetry assumption for the
+% segments
+p.phi_det = deg2rad(projection(1).integ.phi_det(1:p.numsegments)); %in radians
+
+% a planar cut (theta_det = pi/2);
+if isempty(E)
+    projection(1).integ.theta_det = pi/2;
+else
+    lambda = 1.23984197/E;  % wavelength of X-rays in nm
+    r_range = projection(1).par.r_sum{projection(1).par.which_qrange};
+    q_range = projection(1).integ.q(r_range);
+    %     q_value = projection(1).integ.q(1,projection(1).par.qresolved_q{1,params.qnow}(1));
+    projection(1).integ.theta_det = pi/2 + mean( asin(q_range*lambda/(4*pi)) ); % for SAXS = pi/2, for WAXS = pi/2 - half the scattering angle;
+end
+
+p.ny   = max(arrayfun(@(proj) size(proj.data, 1), projection));%+6
+p.nx   = max(arrayfun(@(proj) size(proj.data, 2), projection));%+6
+p.nz = p.nx;
+
+% number of voxels in the tomogram
+p.numOfvoxels = p.nx * p.ny * p.nz;
+
+s = struct;
+
+s.mask3D = ones(p.ny, p.nx, p.nz); %RSD: NOTE Y FIRST...
+
+s.theta.data = ones(p.ny,p.nx,p.nz)*theta_init;  % Polar orientation of structure
+s.phi.data   = ones(p.ny,p.nx,p.nz)*phi_init;      % Azimuthal orientation of structure
+s.A.data = ones(p.ny,p.nx,p.nz)*A_init;
+s.B.data = ones(p.ny,p.nx,p.nz)*B_init;
+
+% Adding q-range used in the integration to the tensor
+fprintf('Adjusting data \n')
+whichqrange = projection(1).par.which_qrange;
+q_indices = projection(1).par.r_sum{1,whichqrange};
+doing_q_resolved = false;
+
+p.filter_2D = filter;
+p.add_name = "EXPSIN_AD_python";
+make_3Dmask = 0;
+
+p.slice = 0; %in case the optimization is done on a slice (so it is using a 2D kernel)
+kernel3D = window3(5,5,5,@hamming);
+p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
+
+p.itmax = it_max; %20                % maximum number of iterations: about 20
+p.skip_projections = 1;         % = 1, for not skipping projections
+
+all_again_filename = sprintf('%s/result_%s_q%d-%d_%s.mat', p.results, ...
+    p.sample_name, projection(1).par.r_sum{1}(1),  projection(1).par.r_sum{1}(end), p.add_name);
+
+p.avoid_wrapping=1;            % avoid wrapping over 2Pi
+
+all_again_filename = sprintf('%s/result_%s_q%d-%d_all_again_%s.mat', p.results, ...
+    p.sample_name, projection(1).par.r_sum{1}(1),  projection(1).par.r_sum{1}(end), p.add_name);
+
+p.save.output_filename = all_again_filename;
+
+tot_timing = tic;
+[p, s] = optimization.optimize_EXPSIN(projection, p, s); %RSD: Make short optimize_EXPSIN function, and err_metric-function that simply initiates python.  %optimization.optimize_SH(projection, p, s);
+
+end

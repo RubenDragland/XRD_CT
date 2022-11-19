@@ -194,7 +194,12 @@ else
 end
 
 
-timing = toc; 
+timing = toc;
+if p.find_orientation && sum(p.opt_coeff)==4
+    tot_time = toc(p.tot_timing);
+else
+    tot_time = 0;
+end
 
 % Rearranging the solution
 if p.find_orientation
@@ -209,11 +214,15 @@ for ii = 1:numel(p.opt_coeff)
         opt_out = opt_out(numOfvoxels+1:end);
     end
 end
+%RSD: Create Err_history
+
+global Err_hist;
+
 
 % Save relevant data in the output file
 if p.save.output_filename
     e = optimization.errorplot([]);
-    save(p.save.output_filename, 's', 'p', 'e', 'timing', '-v6'); % SOMETHING GOES WRONG HERE. TRY DIFFERENT VERSION, DIFFERENT LOCATION, DIFFERENT VARIABLES. SOMETHING WRONG WITH LOCATION. 
+    save(p.save.output_filename, 's', 'p', 'e', 'timing', 'tot_time', 'Err_hist', '-v6'); % SOMETHING GOES WRONG HERE. TRY DIFFERENT VERSION, DIFFERENT LOCATION, DIFFERENT VARIABLES. SOMETHING WRONG WITH LOCATION. 
     %save(sprintf('C:\\Users\\Bruker\\OneDrive\\Dokumenter\\NTNU\\XRD_CT\\Data sets\\analysis\\SASTT\\SASTT_carbon_knot_aligned_ASTRA_corrected\\SH\\optimization_output\\result_%s%s_symSAXS.mat', p.sample_name, p.add_name ),'s', 'p', 'e', 'timing', '-v6' ); 
     %sym_opt_filename = sprintf(fullfile('%s','\result_%s%s_symSAXS.mat'), p.optimization_output_path, p.sample_name, p.add_name);
     %save(sym_opt_filename, 's', 'p', 'e', 'timing', '-v6');

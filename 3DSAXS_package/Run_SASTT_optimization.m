@@ -8,7 +8,7 @@ base_path = '/Data sets/';  % = '~/Data10/' for online analysis,
 base_path = [parent base_path] ;
                                            % provide the path for offline analysis
                                             % Ex: '/das/work/p16/p16649/'
-sample_name = 'Validation_periodic_filter1_3cube_4off_0align'; % 'SASTT_carbon_knot_aligned_ASTRA_correctedny4nx4'; %'Synthetic_sample_ny4_ny4_all_coeffs'; %'sample_name';     % name given in the saxs_caller_template
+sample_name = 'Validation_periodic_filter1_3cube_4off_0align_stripped'; % 'SASTT_carbon_knot_aligned_ASTRA_correctedny4nx4'; %'Synthetic_sample_ny4_ny4_all_coeffs'; %'sample_name';     % name given in the saxs_caller_template
 p.add_name = '';        % additional name the optimizations: = [ ] if not needed
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -38,6 +38,8 @@ filename = sprintf('%s%s.mat', base_path, sample_name);
 fprintf('****** Step 2.1 Load the data ****** \n')
 fprintf('Loading %s\n',filename)
 load(filename);
+
+p.projection_filename = filename;
 
 
 
@@ -104,6 +106,9 @@ phi_init = pi/4; %45 degrees: Azimuthal orientation of structure
 s.theta.data = ones(p.ny,p.nx,p.nz)*theta_init;  % Polar orientation of structure
 s.phi.data   = ones(p.ny,p.nx,p.nz)*phi_init;      % Azimuthal orientation of structure
 
+global Err_hist;
+Err_hist = [];
+
 for ii = 1:numel(l)
     s.a(ii).data = ones(p.ny,p.nx,p.nz)*a(ii);
     s.a(ii).l = l(ii);
@@ -157,6 +162,7 @@ p.method = "bilinear";          % RSD: Choose method of interpolation.
 p.filter_2D = 1;                % RSD: The best filter.
 p.GPU = 0;
 p.python = 1; %RSD: Improve safety here.
+p.batch = 1; %RSD: ALWAYS
 
 % Defining filenames for results. RSD: Moved down one cell to create
 % add_name based on mode
