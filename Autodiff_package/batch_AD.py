@@ -509,9 +509,13 @@ def EXPSIN_AD_cost_function(
     # RSD: This part could be in a common function...
     device = theta.device
     n_proj = len(projections)  # Hope so.
-    data = torch.from_numpy(
-        reshape_projections(projections["data"], n_proj, key="data")
-    ).to(device)
+    data = (
+        torch.from_numpy(
+            reshape_projections(projections["data"], n_proj, key="data"),
+        )
+        .to(device)
+        .double()
+    )
     Rot_exp_now = np.array(
         reshape_projections(projections["Rot_exp"], n_proj, key="Rot_exp")
     )
@@ -575,11 +579,15 @@ def EXPSIN_AD_cost_function(
 
     proj_out_all = arb_projection(I_hat_tomogram, X, Y, Z, Rot_exp_now, p, xout, yout)
 
-    aux_diff_poisson = (torch.sqrt(proj_out_all) - torch.sqrt(data)) * torch.from_numpy(
+    aux_diff_poisson = (
+        torch.sqrt(proj_out_all + 1e-12) - torch.sqrt(data)
+    ) * torch.from_numpy(
         reshape_projections(projections["window_mask"], n_proj, "window_mask")[
             :, :, :, np.newaxis
         ]
-    ).to(device)
+    ).to(
+        device
+    )
 
     aux_diff_poisson = torch.permute(aux_diff_poisson, (0, 2, 3, 1))
     error_norm = 2 * torch.sum(aux_diff_poisson**2, dim=(3, 2, 1, 0)) / numOfpixels
@@ -631,9 +639,13 @@ def SH_AD_cost_function(
     )  # projections.shape[0]  # RSD: Check this. Should be 255 but might be 1
     # RSD: Want data as 3D tensor. Therefore no reshape.
 
-    data = torch.from_numpy(
-        np.array(reshape_projections(projections["data"], n_proj, "data"))
-    ).to(device)
+    data = (
+        torch.from_numpy(
+            np.array(reshape_projections(projections["data"], n_proj, "data")),
+        )
+        .to(device)
+        .double()
+    )
 
     Rot_exp_now = np.array(
         reshape_projections(projections["Rot_exp"], n_proj, "Rot_exp")
@@ -715,11 +727,15 @@ def SH_AD_cost_function(
 
     logging.debug("data shape: {}".format(data.shape))
 
-    aux_diff_poisson = (torch.sqrt(proj_out_all) - torch.sqrt(data)) * torch.from_numpy(
+    aux_diff_poisson = (
+        torch.sqrt(proj_out_all + 1e-12) - torch.sqrt(data)
+    ) * torch.from_numpy(
         reshape_projections(projections["window_mask"], n_proj, "window_mask")[
             :, :, :, np.newaxis
         ]
-    ).to(device)
+    ).to(
+        device
+    )
 
     aux_diff_poisson = torch.permute(aux_diff_poisson, (0, 2, 3, 1))
     # RSD: OK? Should have nothing to say.
@@ -727,6 +743,7 @@ def SH_AD_cost_function(
 
     try:
         error_norm.backward()  # Backpropate gradient
+        pass
     except:
         AD_grad_coeff = None
         AD_grad_theta = None
@@ -973,7 +990,7 @@ def repmat_cumprod_SH(cos_theta_sh_cut, numOfCoeffs, n_proj):
 
 if __name__ == "__main__":
 
-    new_model = 1
+    new_model = 0
 
     if new_model:
 
@@ -1026,7 +1043,7 @@ if __name__ == "__main__":
         # Test code
         # Workspace has to be updated with p.projection_filename.
         workspace = scipy.io.loadmat(
-            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\workspace_batch_python_a0.mat"
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\carbon_knot_debugging.mat"
         )
         theta_struct_it = workspace["theta_struct"]
         phi_struct_it = workspace["phi_struct"]
