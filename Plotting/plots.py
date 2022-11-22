@@ -15,6 +15,7 @@ from scipy.special import sph_harm
 
 from matplotlib import cm
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap, TwoSlopeNorm
+from matplotlib.colors import LogNorm
 
 
 # print(plt.style.available)
@@ -43,7 +44,7 @@ mpl.rcParams["axes.prop_cycle"] = cycler(
 )  # From: https://www.datylon.com/blog/data-visualization-for-colorblind-readers  and https://ranocha.de/blog/colors/ , respectively
 # cycler(color=plt.style.library["tab10"]["axes.prop_cycle"].by_key()["color"])
 # ggplot seaborn-colorblind
-DEFAULT_FIGSIZE = (8, 6)
+DEFAULT_FIGSIZE = (6, 4)
 w = 1
 mpl.rcParams["axes.linewidth"] = w
 mpl.rcParams["xtick.major.width"] = w
@@ -169,6 +170,10 @@ def gaussian(x, A, mu, sig):
     )
 
 
+def exp_decay(x, A, b):
+    return A * b**x
+
+
 def find_vmin_vmax(AD, symbolic, std_c):
     """
     Determines lower and upper bounds for plots given input data
@@ -198,6 +203,7 @@ def plot_SH_aligned_distribution(
     DPI=100,
     size_fraction=1.2,
     shareaxis=True,
+    morefigs=False,
 ):
 
     if attribute == "coeffs":
@@ -225,8 +231,13 @@ def plot_SH_aligned_distribution(
     fig, axs = plt.subplots(rows, cols, figsize=(size1, size2), dpi=DPI)
     for i, (ax, key) in enumerate(zip(np.reshape(axs, -1), keys)):
 
-        if attribute == "orientation" and shareaxis:
+        if attribute == "angles" and shareaxis:
             vmin, vmax = 0, np.pi
+        elif attribute == "coeffs" and morefigs:
+            vmin, vmax = (
+                dummy_values[i] - std_c * dummy_values[i],
+                dummy_values[i] + std_c * dummy_values[i],
+            )
         else:
             vmin, vmax = find_vmin_vmax(AD[key][X, Y, Z], symbolic[key][X, Y, Z], std_c)
 
@@ -272,7 +283,7 @@ def plot_SH_aligned_distribution(
             AD_fit,
             color=AD_color,
             alpha=1,
-            label="AD $\mu$={:.2f}, $\sigma$={:.2f}".format(*AD_popt[1:]),
+            label="AD $\mu$={:.2f}, $\sigma$={:.3f}".format(*AD_popt[1:]),
         )
 
         SYM_color = SYM_ax[-1].patches[0].get_facecolor()
@@ -281,16 +292,109 @@ def plot_SH_aligned_distribution(
             SYM_fit,
             color=SYM_color,
             alpha=1,
-            label="SYM $\mu$={:.2f}, $\sigma$={:.2f}".format(*SYM_popt[1:]),
+            label="SYM $\mu$={:.2f}, $\sigma$={:.3f}".format(*SYM_popt[1:]),
         )
-
+        # handles, labels = ax.get_legend_handles_labels()
+        # ax.legend(handles[::-1], labels[::-1],loc="upper left")
         ax.legend(loc="upper left")
-
     fig.suptitle(title)
 
     if save:
         fig.savefig(r"thesis_plots/" + save_name + ".svg")
     plt.show()
+    return
+
+
+def plot_SH_diff_grads(
+    AD_filename,
+    SYM_filename,
+    bins=100,
+    title="Gradient Comparison",
+    save=False,
+    save_name="SH_diff_grads",
+    dir=r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Results\thesis_res",
+):
+
+    AD_grad = np.squeeze(scipy.io.loadmat(dir + r"/" + AD_filename)["grad_a"])
+    SYM_grad = np.squeeze(scipy.io.loadmat(dir + r"/" + SYM_filename)["grad_a"])
+
+    difference = (AD_grad - SYM_grad) / np.abs(SYM_grad)
+
+    fig, axs = plt.subplots(
+        4, 1, figsize=(DEFAULT_FIGSIZE[0], 4 * DEFAULT_FIGSIZE[1]), dpi=100
+    )
+    axs[0].set_xlabel("Relative Error")
+    axs[0].set_ylabel("Count")
+    axs[0].hist(difference.flatten(), bins=bins, alpha=0.69)
+    axs[0].set_yscale("log")
+
+    axs[1].set_xlabel("Gradient Value")
+    axs[1].set_ylabel("Count")
+    axs[1].hist(SYM_grad.flatten(), bins=bins, alpha=0.69)
+    axs[1].hist(AD_grad.flatten(), bins=bins, alpha=0.69)
+    axs[1].set_yscale("log")
+
+    axs[2].set_xlabel("Error Sorted")
+    axs[2].set_ylabel("Relative Error")
+    axs[2].scatter(SYM_grad.flatten(), np.abs(difference.flatten()), alpha=0.19)
+    axs[2].set_yscale("log")
+    # axs[2].set_xscale("lin")
+
+    # col = axs[3].matshow((AD_grad[:,:,16]-SYM_grad[:,:,16]) /  np.abs(SYM_grad[:,:,16]), cmap=XRDCT_palette_cmp, LogNorm=() )
+    # fig.colorbar(col)
+
+    mean = np.mean(difference)
+    std = np.std(difference)
+
+    # ax.set_xlim(mean - 3 * std, mean + 3 * std)
+
+    plt.suptitle(title)
+
+    if save:
+        fig.savefig(r"thesis_plots/" + save_name + ".svg")
+    plt.show()
+
+    return
+
+
+def plot_performance_curves(
+    sizes,
+    AD_times,
+    SYM_times,
+    AD_initially,
+    title="Performance Curves",
+    save=False,
+    save_name="performance_curves",
+):
+
+    fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE, dpi=100)
+    sizes = np.array(sizes) ** 3
+    x = np.linspace(sizes[0], sizes[-1], 1000)
+
+    ax.plot(sizes, AD_times, label="AD")
+    ax.plot(sizes, SYM_times, label="SYM")
+    ax.plot(x, x ** (0.5), ":", label="$N^{0.5}$")
+
+    ax.scatter(
+        AD_initially[0] ** 3,
+        AD_initially[1],
+        100,
+        label=f"AD {AD_initially[1]}s ",
+    )
+
+    ax.set_xlabel("Voxels")
+    ax.set_ylabel("Time [s]")
+    ax.set_yscale("log")
+    ax.set_xscale("log")
+    ax.set_title(title)
+    #ax.legend(loc = "upper center")
+    ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.40),
+          ncol=4, fancybox=True, shadow=True)
+
+    if save:
+        fig.savefig(r"thesis_plots/" + save_name + ".svg")
+    plt.show()
+
     return
 
 
@@ -301,26 +405,80 @@ def plot_loss_curves(
     save_name="loss_curves",
     DPI=100,
     size_fraction=1.2,
+    logcurve=False,
+    yloglim=(1e-1, 1e1),
 ):
     """
     Plots convergence curves for the given data_dict
     """
-    fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE, dpi=DPI)
-    ax.set_xlabel("Iteration")
-    ax.set_ylabel("Loss")
-    ax.set_title(title)
 
-
-
-    for key, value in data_dict.items():
-        timing = 0
-        ax.plot(
-            value[0],
-            label=f"{key} {np.squeeze(value[0][-1]):.2f} in {timing}s",
+    if logcurve:
+        cols = 1
+        rows = 2
+        size1, size2 = (
+            cols / size_fraction * DEFAULT_FIGSIZE[0],
+            rows / size_fraction * DEFAULT_FIGSIZE[1],
         )
+        fig, axs = plt.subplots(rows, cols, figsize=(size1, size2), dpi=DPI)
+        axs[1].set_yscale("log")
+        axs[1].set_ylim(yloglim)
+        # axs[1].set_xscale("log")
 
-    ax.legend(loc="upper right")
+    else:
+        size1, size2 = DEFAULT_FIGSIZE
+        fig, axs = plt.subplots(figsize=(size1, size2), dpi=DPI)
+        axs = np.expand_dims(axs, axis=0)
 
+    for ax in np.reshape(axs, -1):
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("Loss")
+
+        start_value = np.max([data_dict[key][0][0] for key in data_dict.keys()])
+
+        # b = 0.5
+        # ax.plot(
+        #     x,
+        #     start_value * 0.5 ** (x),
+        #     label="{b}$^{x}$",
+        #     color="black",
+        #     linestyle=":",
+        # )
+        # ax.plot(
+        #     x,
+        #     start_value * np.exp(-x / 5),
+        #     label="$\exp{-x}$",
+        #     color="black",
+        #     linestyle="-.",
+        # )
+
+        for i, (key, value) in enumerate(data_dict.items()):
+
+            cycler = ax._get_lines.prop_cycler
+            this_color = next(cycler)["color"]
+            x = np.arange(0, len(value[0]), dtype=np.float64)
+            # curve = start_value * ((value[0][-1] / value[0][0]) ** (1 / len(x))) ** x
+            decay = (value[0][-1] / value[0][0]) ** (1 / len(x))
+            params = curve_fit(exp_decay, x, value[0])[0]
+            decay = params[1]
+            curve = exp_decay(x, *params)
+            # ax.plot(
+            #     x,
+            #     curve,
+            #     label=f"{key} b={decay:.2f} "
+            #     + "$Ab^{x}$",
+            #     color=this_color,
+            #     linestyle="-.",
+            # )
+
+            ax.plot(
+                value[0],
+                color=this_color,
+                label=f"{key} {np.squeeze(value[0][-1]):.2f} in {value[-1]:.0f}s",
+            )
+
+        ax.legend(loc="upper right")
+
+    plt.suptitle(title)
     if save:
         fig.savefig(r"thesis_plots/" + save_name + ".svg")
     plt.show()
