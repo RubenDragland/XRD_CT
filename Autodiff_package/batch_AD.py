@@ -554,6 +554,17 @@ def EXPSIN_AD_cost_function(
 
     # RSD: Here the new things begin:
 
+    # RSD: Normalisation put on hold for now. Would have to be implemented manually...
+    # try:
+    #     normalise = p["normalise"][0, 0][0]
+    # except:
+    #     normalise = 1
+    # finally:
+    #     pass
+
+    # if normalise:
+    #     norm = np.sum(2 * np.pi * np.simpson   )
+
     SIN_THETA_SQUARED = 1 - COS_THETA**2
 
     I_hat_tomogram = A_sq**2 * torch.exp(-B_sq * SIN_THETA_SQUARED).to(device)

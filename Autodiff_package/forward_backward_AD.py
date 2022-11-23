@@ -398,6 +398,10 @@ def SAXS_AD_cost_function(
             AD_grad_phi = None
 
     finally:
+        torch.set_printoptions(precision=4, sci_mode=True)
+        logging.info(
+            f"AD grad coeff: { reshape_fortran( torch.permute(AD_grad_coeff, (2,1,0)), (ny,nx,nz,numOfCoeffs ) )[:,:,0,0] }"
+        )
         return error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi
 
 
@@ -509,6 +513,8 @@ def arb_projection(tomo_obj_all, X, Y, Z, R, p, xout, yout):  # Assume numpy
         nPages,
     )
 
+    logging.info("proj_out_all {}".format(proj_out_all[:, :, 0]))
+
     if p["filter_2D"] == 0:
         pass
     elif p["filter_2D"] == 1:
@@ -539,6 +545,10 @@ def arb_projection(tomo_obj_all, X, Y, Z, R, p, xout, yout):  # Assume numpy
         )
         proj_out_all = torch.squeeze(torch.permute(proj_out_all, (0, 2, 3, 1)), 0)
         logging.debug(f"proj_out_all after conv shape: {proj_out_all.shape}")
+
+    logging.info("proj_out_all {}".format(proj_out_all[:, :, 0]))
+    logging.info(f"Ax test: {Ax[:,:,0]}")
+    logging.info(f"Ay test: {Ay[:,:,0]}")
 
     return proj_out_all
 
@@ -700,7 +710,7 @@ def reshape_fortran(x, shape):
 if __name__ == "__main__":
     # Test code
     workspace = scipy.io.loadmat(
-        r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\orientation_python_workspace.mat"
+        r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\validation_python_workspace.mat"
     )
     theta_struct_it = workspace["theta_struct"]
     phi_struct_it = workspace["phi_struct"]
@@ -725,7 +735,7 @@ if __name__ == "__main__":
 
     tic = time.time()
 
-    for i in range(255):
+    for i in range(1):
         current_projection = projection[0, i]
         main(
             theta_struct_it,
