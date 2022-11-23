@@ -8,7 +8,7 @@ base_path = '/Data sets/';  % = '~/Data10/' for online analysis,
 base_path = [parent base_path] ;
                                            % provide the path for offline analysis
                                             % Ex: '/das/work/p16/p16649/'
-sample_name = 'Validation_periodic_filter1_3cube_4off_0align_stripped'; % 'SASTT_carbon_knot_aligned_ASTRA_correctedny4nx4'; %'Synthetic_sample_ny4_ny4_all_coeffs'; %'sample_name';     % name given in the saxs_caller_template
+sample_name = 'SASTT_carbon_knot_aligned_ASTRA_correctedny4nx4'; %'Validation_periodic_filter1_3cube_4off_0align_stripped'; % 'SASTT_carbon_knot_aligned_ASTRA_correctedny4nx4'; %'Synthetic_sample_ny4_ny4_all_coeffs'; %'sample_name';     % name given in the saxs_caller_template
 p.add_name = '';        % additional name the optimizations: = [ ] if not needed
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -162,7 +162,7 @@ p.method = "bilinear";          % RSD: Choose method of interpolation.
 p.filter_2D = 1;                % RSD: The best filter.
 p.GPU = 0;
 p.python = 1; %RSD: Improve safety here.
-p.batch = 1; %RSD: ALWAYS
+p.batch = 0; %RSD: ALWAYS
 
 % Defining filenames for results. RSD: Moved down one cell to create
 % add_name based on mode

@@ -7,30 +7,35 @@ default_A = 1e-4;
 default_B = 1e-4;
 default_theta = pi/4;
 default_phi = pi/4;
+default_normalise = 1;
 if nargin > 6
     it_max = varargin{1};
     A_init = varargin{2};
     B_init = varargin{3};
     theta_init = varargin{4};
-    phi_init = varargin{5};    
+    phi_init = varargin{5};
+    normalise = varargin{6};
 elseif nargin >4
     it_max = varargin{1};
     A_init = varargin{2};
     B_init = varargin{3};
     theta_init = default_theta;
-    phi_init = default_phi;  
+    phi_init = default_phi;
+    normalise = default_normalise;
 elseif nargin > 3
     it_max = varargin{1};
     A_init = default_A;
     B_init = default_B;
     theta_init = default_theta;
     phi_init = default_phi;  
+    normalise = default_normalise;
 else
     it_max = default_it;
     A_init = default_A;
     B_init = default_B;
     theta_init = default_theta;
-    phi_init = default_phi;    
+    phi_init = default_phi;   
+    normalise = default_normalise;
 end
 % EDIT:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -120,6 +125,7 @@ p.kernel = kernel3D./sum(kernel3D(:)); % for normalization (sum equals 1)
 
 p.itmax = it_max; %20                % maximum number of iterations: about 20
 p.skip_projections = 1;         % = 1, for not skipping projections
+p.normalise = normalise;
 
 all_again_filename = sprintf('%s/result_%s_q%d-%d_%s.mat', p.results, ...
     p.sample_name, projection(1).par.r_sum{1}(1),  projection(1).par.r_sum{1}(end), p.add_name);
@@ -131,7 +137,6 @@ all_again_filename = sprintf('%s/result_%s_q%d-%d_all_again_%s.mat', p.results, 
 
 p.save.output_filename = all_again_filename;
 
-tot_timing = tic;
 [p, s] = optimization.optimize_EXPSIN(projection, p, s); %RSD: Make short optimize_EXPSIN function, and err_metric-function that simply initiates python.  %optimization.optimize_SH(projection, p, s);
 
 end

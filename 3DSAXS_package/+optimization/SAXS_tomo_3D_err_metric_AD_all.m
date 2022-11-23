@@ -238,7 +238,7 @@ if p.python && find_grad && p.batch
     if ~isempty( double(batch_results{2}) )
         AD_grad_coeff = double(batch_results{2});
         grad_a = grad_a + reshape( permute(AD_grad_coeff, [3,2,1]) , ny, nx, nz, numOfCoeffs) ; 
-    end
+     end
     if ~isempty( double(batch_results{3}) )
         AD_grad_theta = double( batch_results{3});
         AD_grad_phi = double (batch_results{4} );

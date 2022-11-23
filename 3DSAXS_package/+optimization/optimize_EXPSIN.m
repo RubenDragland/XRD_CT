@@ -169,10 +169,10 @@ opt_out = optimization.cgmin1('optimization.SAXS_EXPSIN_3D_err_AD', opt_inputs, 
 
 
 timing = toc(time1); 
-tot_time = toc(tot_timing);
 fprintf('Total time: %d ', timing);
 
 s.timing = timing;
+tot_time = timing;
 
 % Rearranging the solution
 s.theta.data = reshape(opt_out(1:numOfvoxels),Nvol);
