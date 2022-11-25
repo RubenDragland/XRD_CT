@@ -63,12 +63,12 @@ end
 %% Define Size
 
 % define the size of the tomogram (not the same as the tomogram, as some projection might change the size)
-p.ny   = 25; %max(arrayfun(@(proj) size(proj.data, 1), projection));%+6
-p.nx   = 25; %max(arrayfun(@(proj) size(proj.data, 2), projection));%+6
+p.ny   = 30; %max(arrayfun(@(proj) size(proj.data, 1), projection));%+6
+p.nx   = 30; %max(arrayfun(@(proj) size(proj.data, 2), projection));%+6
 p.nz = p.nx;
 
 %RSD: Python indexing. 
-slice = [ 4 21];
+slice = [ 0 30];
 
 % number of voxels in the tomogram
 p.numOfvoxels = p.nx * p.ny * p.nz;
@@ -90,15 +90,15 @@ m = [0 0 0 0];  % Azimuthal order
 
 %% Choose sample
 
-filename_sample = "Data Sets/Difficult_periodic_filter3_17cube_8off_0align";
-base_value = 16.9;
+filename_sample = "Data Sets/Dummy_periodic_filter1_30cube_0off_0align";
+base_value = 0.69;
 a0 = base_value;
 a2 = 1/3*base_value;
 a4 = 1/6*base_value;
 a6 = 1/12*base_value;
 
-theta_init = 2*pi/3;
-phi_init = 2*pi/3;
+theta_init = pi/3;
+phi_init = pi/3;
 
 
 a= [a0 a2 a4 a6];

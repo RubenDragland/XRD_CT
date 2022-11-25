@@ -44,13 +44,13 @@ mpl.rcParams["axes.prop_cycle"] = cycler(
 )  # From: https://www.datylon.com/blog/data-visualization-for-colorblind-readers  and https://ranocha.de/blog/colors/ , respectively
 # cycler(color=plt.style.library["tab10"]["axes.prop_cycle"].by_key()["color"])
 # ggplot seaborn-colorblind
-DEFAULT_FIGSIZE = (6, 4)
+DEFAULT_FIGSIZE = (5.69, 3.9)
 w = 1
 mpl.rcParams["axes.linewidth"] = w
 mpl.rcParams["xtick.major.width"] = w
-mpl.rcParams["xtick.minor.width"] = w
+mpl.rcParams["xtick.minor.width"] = w / 2
 mpl.rcParams["ytick.major.width"] = w
-mpl.rcParams["ytick.minor.width"] = w
+mpl.rcParams["ytick.minor.width"] = w / 2
 
 mpl.rcParams["lines.markersize"] = 6
 mpl.rcParams["lines.linewidth"] = 3
@@ -61,17 +61,18 @@ mpl.rcParams["axes.titlesize"] = 16
 mpl.rcParams["xtick.labelsize"] = 12
 mpl.rcParams["ytick.labelsize"] = 12
 mpl.rcParams["axes.labelsize"] = 12
-mpl.rcParams["figure.figsize"] = (8, 6)
+mpl.rcParams["figure.figsize"] = DEFAULT_FIGSIZE  # (8, 6)
 mpl.rcParams["figure.constrained_layout.use"] = True
-mpl.rcParams["axes.formatter.use_mathtext"] = True
-mpl.rcParams["text.usetex"] = True  # Use Latex
-mpl.rcParams.update(
-    {
-        "text.usetex": True,
-        "font.family": "serif",
-        "font.serif": ["Palatino"],
-    }
-)
+# mpl.rcParams["axes.formatter.use_mathtext"] = True
+# mpl.rcParams["text.usetex"] = True  # Use Latex
+# mpl.rcParams.update(
+#     {
+#         "text.usetex": True,
+#         "font.family": "serif",
+#         "font.serif": ["Palatino"],
+#     }
+# )
+
 # Try this to get font similar to latex
 """
 mpl.rcParams['legend.loc'] = "upper_right" # Suggestion
@@ -83,22 +84,22 @@ mpl.rcParams['']
 # Borrow some code to create colormap from color palette https://towardsdatascience.com/beautiful-custom-colormaps-with-matplotlib-5bab3d1f0e72 and https://www.delftstack.com/howto/matplotlib/custom-colormap-using-python-matplotlib/#use-rgba-values-to-create-custom-listed-colormap-in-python
 
 
-def plot_tex():
-    t = np.linspace(0.0, 1.0, 100)
-    s = np.cos(4 * np.pi * t) + 2
-
-    fig, ax = plt.subplots(figsize=(6, 4), tight_layout=True)
-    ax.plot(t, s)
-
-    ax.set_xlabel(r"\textbf{time (s)}")
-    ax.set_ylabel("\\textit{Velocity (\N{DEGREE SIGN}/sec)}", fontsize=16)
-    ax.set_title(
-        r"\TeX\ is Number $\displaystyle\sum_{n=1}^\infty" r"\frac{-e^{i\pi}}{2^n}$!",
-        fontsize=16,
-        color="r",
-    )
-
-    plt.show()
+def choose_formatter(incscape=True):
+    if incscape:
+        mpl.rcParams["svg.fonttype"] = "none"
+        plt.rcParams["svg.fonttype"] = "none"
+        plt.rcParams["axes.unicode_minus"] = False
+        return
+    else:
+        mpl.rcParams["axes.formatter.use_mathtext"] = True
+        mpl.rcParams["text.usetex"] = True  # Use Latex
+        mpl.rcParams.update(
+            {
+                "text.usetex": True,
+                "font.family": "serif",
+                "font.serif": ["Palatino"],
+            }
+        )
     return
 
 
@@ -170,16 +171,22 @@ def gaussian(x, A, mu, sig):
     )
 
 
+def lorentzian(x, A, mu, gamma):
+    return A / (np.pi * gamma) * gamma**2 / ((x - mu) ** 2 + gamma**2)
+
+
 def exp_decay(x, A, b):
     return A * b**x
 
 
 def find_vmin_vmax(AD, symbolic, std_c):
     """
-    Determines lower and upper bounds for plots given input data
+    Determines lower and upper bounds for plots given input data.
+    Gives much space on left for legend
     """
-    val1_lower = np.mean(AD) - std_c * np.std(AD)
-    val2_lower = np.mean(symbolic) - std_c * np.std(symbolic)
+    # Additional space to legend.
+    val1_lower = np.mean(AD) - 1.2 * std_c * np.std(AD)
+    val2_lower = np.mean(symbolic) - 1.2 * std_c * np.std(symbolic)
 
     val1_upper = np.mean(AD) + std_c * np.std(AD)
     val2_upper = np.mean(symbolic) + std_c * np.std(symbolic)
@@ -197,42 +204,65 @@ def plot_SH_aligned_distribution(
     attribute,
     title="SH ",
     bins=100,
+    std_c=2,
+    shape="square",
     save=False,
     save_name="SH_aligned_distribution_",
-    std_c=2,
-    DPI=100,
-    size_fraction=1.2,
+    size_fraction=0,
     shareaxis=True,
     morefigs=False,
+    incscape=True,
+    sharey=True,
+    ticks=5,
 ):
 
+    choose_formatter(incscape=incscape)
+
+    # Set up figure
     if attribute == "coeffs":
         keys = ["a0", "a2", "a4", "a6"]
         titles = keys
-        rows, cols = 2, 2
         title += "Coefficients"
         save_name += "coeffs"
+        if shape == "square":
+            rows, cols = 2, 2
+        else:
+            rows, cols = 4, 1
     elif attribute == "angles":
         keys = ["theta", "phi"]
-        titles = [r"$\theta$", r"$\varphi$"]
+        titles = keys  # [r"$\theta$", r"$\varphi$"] Need to fix this somehow. Perhaps extension to incscape?
         rows, cols = 1, 2
         title += "Orientation"
         save_name += "angles"
+        if shape == "horizontal":
+            rows, cols = 1, 2
+        else:
+            rows, cols = 2, 1
 
     slice1, slice2 = slice
     ind = np.arange(slice1, slice2)
     X, Y, Z = np.meshgrid(ind, ind, ind)
 
+    if not size_fraction:
+        cols_fraction = 1
+        rows_fraction = 1
+    else:
+        cols_fraction = cols / size_fraction
+        rows_fraction = rows / size_fraction
+
     size1, size2 = (
-        cols / size_fraction * DEFAULT_FIGSIZE[0],
-        rows / size_fraction * DEFAULT_FIGSIZE[1],
+        cols_fraction * DEFAULT_FIGSIZE[0],
+        rows_fraction * DEFAULT_FIGSIZE[1],
     )
 
-    fig, axs = plt.subplots(rows, cols, figsize=(size1, size2), dpi=DPI)
+    fig, axs = plt.subplots(rows, cols, figsize=(size1, size2), sharey=sharey)
     for i, (ax, key) in enumerate(zip(np.reshape(axs, -1), keys)):
 
         if attribute == "angles" and shareaxis:
-            vmin, vmax = 0, np.pi
+            vmin, vmax = (
+                dummy_values[i] - std_c * np.pi / 4,
+                dummy_values[i] + std_c * np.pi / 4,
+            )
         elif attribute == "coeffs" and morefigs:
             vmin, vmax = (
                 dummy_values[i] - std_c * dummy_values[i],
@@ -243,9 +273,6 @@ def plot_SH_aligned_distribution(
 
         AD_vals = AD[key][X, Y, Z].flatten()
         symbolic_vals = symbolic[key][X, Y, Z].flatten()
-
-        ax.set_xlabel("Value")
-        ax.set_ylabel("Count")
         ax.set_title(titles[i])
 
         AD_ax = ax.hist(
@@ -271,11 +298,11 @@ def plot_SH_aligned_distribution(
             label=f"Solution: {dummy_values[i]:.2f}",
         )
 
-        AD_popt, cov1 = curve_fit(gaussian, AD_ax[1][:-1], AD_ax[0])
-        SYM_popt, cov2 = curve_fit(gaussian, SYM_ax[1][:-1], SYM_ax[0])
+        AD_popt, cov1 = curve_fit(lorentzian, AD_ax[1][:-1], AD_ax[0])
+        SYM_popt, cov2 = curve_fit(lorentzian, SYM_ax[1][:-1], SYM_ax[0])
 
-        AD_fit = gaussian(AD_ax[1], *AD_popt)
-        SYM_fit = gaussian(SYM_ax[1], *SYM_popt)
+        AD_fit = lorentzian(AD_ax[1], *AD_popt)
+        SYM_fit = lorentzian(SYM_ax[1], *SYM_popt)
 
         AD_color = AD_ax[-1].patches[0].get_facecolor()
         ax.plot(
@@ -283,7 +310,7 @@ def plot_SH_aligned_distribution(
             AD_fit,
             color=AD_color,
             alpha=1,
-            label="AD $\mu$={:.2f}, $\sigma$={:.3f}".format(*AD_popt[1:]),
+            label="AD Fit",  # $\mu$={:.2f}, $\sigma$={:.3f}".format(*AD_popt[1:]),
         )
 
         SYM_color = SYM_ax[-1].patches[0].get_facecolor()
@@ -292,15 +319,114 @@ def plot_SH_aligned_distribution(
             SYM_fit,
             color=SYM_color,
             alpha=1,
-            label="SYM $\mu$={:.2f}, $\sigma$={:.3f}".format(*SYM_popt[1:]),
+            label="SYM Fit",  # $\mu$={:.2f}, $\sigma$={:.3f}".format(*SYM_popt[1:]),
         )
-        # handles, labels = ax.get_legend_handles_labels()
-        # ax.legend(handles[::-1], labels[::-1],loc="upper left")
-        ax.legend(loc="upper left")
+        handles, labels = ax.get_legend_handles_labels()
+        sol_handle = handles[2]
+        sol_label = labels[2]
+        ax.legend([sol_handle], [sol_label], loc="upper left", frameon=False)
+        ax.xaxis.set_major_locator(plt.MaxNLocator(ticks))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(ticks))
+
     fig.suptitle(title)
+    fig.text(-0.01, 0.5, "Count", rotation="vertical", va="center")
+    fig.text(0.5, -0.01, "Value", ha="center")
+
+    bbox_handles = [handles[i] for i in [0, 1]]  # , 3, 4]]
+    bbox_labels = [labels[i] for i in [0, 1]]  # , 3, 4]]
+
+    fig.legend(
+        bbox_handles,
+        bbox_labels,
+        loc="lower center",
+        ncol=len(bbox_labels),
+        bbox_to_anchor=(0.5, -0.6 / size2),
+        frameon=False,
+    )
 
     if save:
-        fig.savefig(r"thesis_plots/" + save_name + ".svg")
+        plt.savefig(r"../Plotting/thesis_plots/" + save_name + ".svg")
+    plt.show()
+    return
+
+
+def plot_SH_deviation_grad_scatter(
+    AD_filename,
+    SYM_filename,
+    slice=None,
+    title="Gradient Comparison",
+    save=False,
+    save_name="SH_diff_grads",
+    dir=r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Results\thesis_res",
+    incscape=True,
+):
+    choose_formatter(incscape=incscape)
+
+    AD_grad = np.squeeze(scipy.io.loadmat(dir + r"/" + AD_filename)["grad_a"])
+    SYM_grad = np.squeeze(scipy.io.loadmat(dir + r"/" + SYM_filename)["grad_a"])
+
+    if slice is not None:
+        slice1, slice2 = slice
+        AD_grad = AD_grad[slice1:slice2, slice1:slice2, slice1:slice2]
+        SYM_grad = SYM_grad[slice1:slice2, slice1:slice2, slice1:slice2]
+
+    radius = np.zeros(SYM_grad.shape)
+    center = np.array(radius.shape) // 2
+    for index, v in np.ndenumerate(radius):
+        radius[index] = np.sqrt(
+            (index[0] - center[0]) ** 2
+            + (index[1] - center[1]) ** 2
+            + (index[2] - center[2]) ** 2
+        )
+    radius = np.ndarray.flatten(radius)
+
+    difference = (AD_grad - SYM_grad) / np.abs(SYM_grad)
+
+    fig, axs = plt.subplots(
+        2,
+        1,
+        figsize=(DEFAULT_FIGSIZE[0], 2 * DEFAULT_FIGSIZE[1]),
+        dpi=100,
+        sharex=True,
+    )
+
+    axs[0].scatter(
+        SYM_grad.flatten(),
+        difference.flatten(),
+        alpha=0.69,
+        c=radius,
+        cmap=XRDCT_palette_cmp,
+    )
+    axs[-1].scatter(
+        SYM_grad.flatten(),
+        np.abs(difference.flatten()),
+        alpha=0.69,
+        c=radius,
+        cmap=XRDCT_palette_cmp,
+    )
+    axs[-1].set_yscale("log")
+
+    axs[-1].xaxis.set_major_locator(plt.MaxNLocator(5))
+
+    # axs[-1].set_xlabel("Gradient Value Sorted")
+    # ax.set_ylabel("Relative Error")
+
+    fig.text(-0.02, 0.5, "Relative Deviation", rotation="vertical", va="center")
+    fig.text(0.5, -0.01, "Gradient Value Sorted", ha="center")
+
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+
+    cmap = XRDCT_palette_cmp
+    norm = mpl.colors.Normalize(vmin=0, vmax=radius.max())
+    # cbar = fig.add_subplot(133, frameon=False)
+    plt.colorbar(
+        mpl.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cbar_ax, label="Radius"
+    )
+
+    plt.suptitle(title)
+    if save:
+        fig.savefig(r"../Plotting/thesis_plots/" + save_name + ".svg")
     plt.show()
     return
 
@@ -365,7 +491,10 @@ def plot_performance_curves(
     title="Performance Curves",
     save=False,
     save_name="performance_curves",
+    incscape=True,
 ):
+
+    choose_formatter(incscape=incscape)
 
     fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE, dpi=100)
     sizes = np.array(sizes) ** 3
@@ -387,12 +516,17 @@ def plot_performance_curves(
     ax.set_yscale("log")
     ax.set_xscale("log")
     ax.set_title(title)
-    #ax.legend(loc = "upper center")
-    ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.40),
-          ncol=4, fancybox=True, shadow=True)
+    # ax.legend(loc = "upper center")
+    ax.legend(
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.40),
+        ncol=4,
+        fancybox=True,
+        shadow=True,
+    )
 
     if save:
-        fig.savefig(r"thesis_plots/" + save_name + ".svg")
+        fig.savefig(r"../Plotting/thesis_plots/" + save_name + ".svg")
     plt.show()
 
     return
@@ -435,22 +569,6 @@ def plot_loss_curves(
 
         start_value = np.max([data_dict[key][0][0] for key in data_dict.keys()])
 
-        # b = 0.5
-        # ax.plot(
-        #     x,
-        #     start_value * 0.5 ** (x),
-        #     label="{b}$^{x}$",
-        #     color="black",
-        #     linestyle=":",
-        # )
-        # ax.plot(
-        #     x,
-        #     start_value * np.exp(-x / 5),
-        #     label="$\exp{-x}$",
-        #     color="black",
-        #     linestyle="-.",
-        # )
-
         for i, (key, value) in enumerate(data_dict.items()):
 
             cycler = ax._get_lines.prop_cycler
@@ -473,15 +591,113 @@ def plot_loss_curves(
             ax.plot(
                 value[0],
                 color=this_color,
-                label=f"{key} {np.squeeze(value[0][-1]):.2f} in {value[-1]:.0f}s",
+                label=f"{key} {value[-1]:.0f}s",
             )
 
         ax.legend(loc="upper right")
 
     plt.suptitle(title)
     if save:
-        fig.savefig(r"thesis_plots/" + save_name + ".svg")
+        fig.savefig(r"../Plotting/thesis_plots/" + save_name + ".svg")
     plt.show()
+    return
+
+
+def plot_slices(
+    symbolic,
+    automatic,
+    expsin,
+    key_SH,
+    key_EXPSIN,
+    slice,
+    shape="vertical",
+    title="Reconstruction Slices",
+    save=False,
+    save_name="reconstruction_slices",
+    incscape=False,
+    size_fraction=1,
+):
+
+    choose_formatter(incscape=incscape)
+    if shape == "vertical":
+        cols = 1
+        rows = 3
+    elif shape == "horizontal":
+        cols = 3
+        rows = 1
+    else:
+        raise ValueError("shape must be either vertical or horizontal")
+
+    slice_y, slice_x, slice_z = slice
+
+    sym_data = np.squeeze(
+        symbolic[key_SH][
+            slice_y[0] : slice_y[1], slice_x[0] : slice_x[1], slice_z[0] : slice_z[1]
+        ]
+    )
+
+    aut_data = np.squeeze(
+        automatic[key_SH][
+            slice_y[0] : slice_y[1], slice_x[0] : slice_x[1], slice_z[0] : slice_z[1]
+        ]
+    )
+
+    exp_data = np.squeeze(
+        expsin[key_EXPSIN][
+            slice_y[0] : slice_y[1], slice_x[0] : slice_x[1], slice_z[0] : slice_z[1]
+        ]
+    )
+
+    min_value = np.min([sym_data, aut_data, exp_data])
+    max_value = np.max([sym_data, aut_data, exp_data])
+
+    cmap = XRDCT_palette_cmp
+    norm = mpl.colors.Normalize(vmin=min_value, vmax=max_value)
+
+    if not size_fraction:
+        cols_fraction = 1
+        rows_fraction = 1
+    else:
+        cols_fraction = cols / size_fraction
+        rows_fraction = rows / size_fraction
+
+    size1, size2 = (
+        cols_fraction * DEFAULT_FIGSIZE[0],
+        rows_fraction * DEFAULT_FIGSIZE[1],
+    )
+    fig, axs = plt.subplots(rows, cols, figsize=(size1, size2), dpi=100)
+    fig.suptitle(title)
+    axs[0].matshow(sym_data, cmap=cmap, norm=norm)
+    axs[1].matshow(aut_data, cmap=cmap, norm=norm)
+    if key_EXPSIN == "A":
+        axs[2].matshow(exp_data**2, cmap=cmap, norm=norm)
+    else:
+        axs[2].matshow(exp_data, cmap=cmap, norm=norm)
+
+    axs[0].set_title("SYM")
+    axs[1].set_title("AD")
+    axs[2].set_title("EXPSIN")
+
+    all_axes = axs.reshape(-1)
+    for a in all_axes:
+        a.set_xticks([])
+        a.set_yticks([])
+        a.set_aspect("equal")
+
+    fig.subplots_adjust(bottom=0.1)
+    cbar_ax = fig.add_axes([0.2, 0.2, 0.6, 0.05])
+    plt.colorbar(
+        mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+        cax=cbar_ax,
+        label=f"{key_SH}[{key_EXPSIN}]-value",
+        orientation="horizontal",
+    )
+
+    if save:
+        fig.savefig(r"../Plotting/thesis_plots/" + save_name + ".svg")
+
+    plt.show()
+
     return
 
 

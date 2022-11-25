@@ -1,0 +1,102 @@
+Before a_temp_it shape: 64
+After a_temp_it shape: torch.Size([64])
+Rot_str shape: torch.Size([3, 3, 64])
+unit_q_object shape: torch.Size([3, 8])
+A shape: torch.Size([3, 3, 64])
+B shape: torch.Size([3, 8])
+cos_theta_sh_cut shape: torch.Size([8, 64])
+Ylm_coef: tensor([0.2821], dtype=torch.float64)
+block_cos_theta_powers shape: torch.Size([1, 8, 64])
+A shape: torch.Size([1])
+B shape: torch.Size([1, 8, 64])
+A dims: 2
+B dims: 3
+Ylm shape: torch.Size([1, 8, 64])
+a_temp shape: torch.Size([64])
+A shape: torch.Size([64])
+B shape: torch.Size([1, 8, 64])
+sumlm_alm_Ylm shape: torch.Size([1, 8, 64])
+data_synt_vol shape: torch.Size([4, 4, 4, 8])
+Data type, shape: torch.float32, torch.Size([4, 4, 8])
+xout shape: (4,)
+yout shape: (4,)
+
+xout: [-1.38545603 -0.38545603  0.61454397  1.61454397]
+yout: [-0.19120833  0.80879167  1.80879167  2.80879167]
+proj_out_all shape: torch.Size([4, 4, 8])
+tomo_obj_all shape: torch.Size([4, 4, 4, 8])
+nRows: 4 nCols: 4 nPages: 8
+Ax shape: (4, 4, 4)
+indices shape: (36, 3)
+tomo_obj_all shape: torch.Size([4, 4, 4, 8])
+
+Ay: [1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.
+ 3. 3. 3. 3. 3. 3. 3. 3. 3. 3. 3. 3.]
+Ax: [1. 1. 1. 1. 2. 2. 2. 2. 3. 3. 3. 3. 1. 1. 1. 1. 2. 2. 2. 2. 3. 3. 3. 3.
+ 1. 1. 1. 1. 2. 2. 2. 2. 3. 3. 3. 3.]
+temp1 shape: torch.Size([36])
+tomo_obj_all indexed shape: torch.Size([36, 8])
+data shape: torch.Size([4, 4, 8])
+aux_diff_poisson shape: torch.Size([8, 4, 4])
+Ad_grad_coeff: tensor([ 0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,
+         0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,
+        -0.1200, -0.1896, -0.2592, -0.3288, -0.1227, -0.1922, -0.2617, -0.3312,
+        -0.0370, -0.0357, -0.0343, -0.0330,  0.0000,  0.0000,  0.0000,  0.0000,
+        -0.2213, -0.3600, -0.4987, -0.6374, -0.2223, -0.3616, -0.5008, -0.6401,
+        -0.0513, -0.0494, -0.0475, -0.0456,  0.0000,  0.0000,  0.0000,  0.0000,
+        -0.1343, -0.2160, -0.2977, -0.3794, -0.1356, -0.2173, -0.2990, -0.3807,
+        -0.0351, -0.0337, -0.0324, -0.0311,  0.0000,  0.0000,  0.0000,  0.0000],
+       dtype=torch.float64)
+error_norm: 0.20768234133720398
+AD_grad_coeff shape: torch.Size([64])
+Before a_temp_it shape: 64
+After a_temp_it shape: torch.Size([64])
+Rot_str shape: torch.Size([3, 3, 64])
+unit_q_object shape: torch.Size([3, 8])
+A shape: torch.Size([3, 3, 64])
+B shape: torch.Size([3, 8])
+cos_theta_sh_cut shape: torch.Size([8, 64])
+Ylm_coef: tensor([0.2821], dtype=torch.float64)
+block_cos_theta_powers shape: torch.Size([1, 8, 64])
+A shape: torch.Size([1])
+B shape: torch.Size([1, 8, 64])
+A dims: 2
+B dims: 3
+Ylm shape: torch.Size([1, 8, 64])
+a_temp shape: torch.Size([64])
+A shape: torch.Size([64])
+B shape: torch.Size([1, 8, 64])
+sumlm_alm_Ylm shape: torch.Size([1, 8, 64])
+data_synt_vol shape: torch.Size([4, 4, 4, 8])
+Data type, shape: torch.float32, torch.Size([4, 4, 8])
+xout shape: (4,)
+yout shape: (4,)
+
+xout: [-1.38545603 -0.38545603  0.61454397  1.61454397]
+yout: [-0.19120833  0.80879167  1.80879167  2.80879167]
+proj_out_all shape: torch.Size([4, 4, 8])
+tomo_obj_all shape: torch.Size([4, 4, 4, 8])
+nRows: 4 nCols: 4 nPages: 8
+Ax shape: (4, 4, 4)
+indices shape: (36, 3)
+tomo_obj_all shape: torch.Size([4, 4, 4, 8])
+
+Ay: [1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.
+ 3. 3. 3. 3. 3. 3. 3. 3. 3. 3. 3. 3.]
+Ax: [1. 1. 1. 1. 2. 2. 2. 2. 3. 3. 3. 3. 1. 1. 1. 1. 2. 2. 2. 2. 3. 3. 3. 3.
+ 1. 1. 1. 1. 2. 2. 2. 2. 3. 3. 3. 3.]
+temp1 shape: torch.Size([36])
+tomo_obj_all indexed shape: torch.Size([36, 8])
+data shape: torch.Size([4, 4, 8])
+aux_diff_poisson shape: torch.Size([8, 4, 4])
+Ad_grad_coeff: tensor([ 0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,
+         0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,
+        -0.1200, -0.1896, -0.2592, -0.3288, -0.1227, -0.1922, -0.2617, -0.3312,
+        -0.0370, -0.0357, -0.0343, -0.0330,  0.0000,  0.0000,  0.0000,  0.0000,
+        -0.2213, -0.3600, -0.4987, -0.6374, -0.2223, -0.3616, -0.5008, -0.6401,
+        -0.0513, -0.0494, -0.0475, -0.0456,  0.0000,  0.0000,  0.0000,  0.0000,
+        -0.1343, -0.2160, -0.2977, -0.3794, -0.1356, -0.2173, -0.2990, -0.3807,
+        -0.0351, -0.0337, -0.0324, -0.0311,  0.0000,  0.0000,  0.0000,  0.0000],
+       dtype=torch.float64)
+error_norm: 0.20768234133720398
+AD_grad_coeff shape: torch.Size([64])
