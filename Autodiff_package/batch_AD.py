@@ -1004,9 +1004,9 @@ if __name__ == "__main__":
     new_model = 0
 
     if new_model:
-
+        # RSD: Wrong file.
         workspace = scipy.io.loadmat(
-            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\new_model_retry.mat"
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\workspace_batch_python_orientation.mat"
         )
 
         theta = workspace["theta_struct"]
@@ -1054,7 +1054,7 @@ if __name__ == "__main__":
         # Test code
         # Workspace has to be updated with p.projection_filename.
         workspace = scipy.io.loadmat(
-            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\carbon_knot_debugging.mat"
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\workspace_batch_python_orientation.mat"
         )
         theta_struct_it = workspace["theta_struct"]
         phi_struct_it = workspace["phi_struct"]

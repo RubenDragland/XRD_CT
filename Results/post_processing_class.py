@@ -108,8 +108,8 @@ class EXPSIN_Reconstruction(TensorTomographyReconstruction):
     def __init__(self, path_to_mat_file, dataset=False):
         super().__init__(path_to_mat_file, dataset=dataset)
 
-        self.A = self.mat[self.key]["A"][0, 0][:, :][0][0]
-        self.B = self.mat[self.key]["B"][0, 0][:, :][0][0]
+        self.A = self.mat[self.key]["A"][0, 0][:, 0][0][0]
+        self.B = self.mat[self.key]["B"][0, 0][:, 0][0][0]
 
         self.params = np.array([self.A, self.B, self.theta, self.phi])
 

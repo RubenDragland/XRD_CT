@@ -242,8 +242,8 @@ if p.python && find_grad && p.batch
     if ~isempty( double(batch_results{3}) )
         AD_grad_theta = double( batch_results{3});
         AD_grad_phi = double (batch_results{4} );
-        grad_theta_struct = grad_theta_struct + reshape( permute(AD_grad_theta, [3,2,1]), ny, nx, nz); 
-        grad_phi_struct = grad_phi_struct + reshape( permute(AD_grad_phi, [3,2,1]), ny,nx,nz);
+        grad_theta_struct = grad_theta_struct + AD_grad_theta; %reshape( permute(AD_grad_theta, [3,2,1]), ny, nx, nz); %RSD: Here! Permutation all wrong, but why is this working???
+        grad_phi_struct = grad_phi_struct + AD_grad_theta; %reshape( permute(AD_grad_phi, [3,2,1]), ny,nx,nz); % The input and output are original shapes. If this still does not work, check rot_str. Check by looking at convergence curve. Then redo carbon knot. Should agree with MATLAB error evaluation. 
     end
     
     

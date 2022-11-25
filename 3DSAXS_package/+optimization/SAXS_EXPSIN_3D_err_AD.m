@@ -108,8 +108,8 @@ end
 if ~isempty( double(batch_results{4}) )
     AD_grad_theta = double( batch_results{4});
     AD_grad_phi = double (batch_results{5} );
-    grad_theta_struct = reshape( permute(AD_grad_theta, [3,2,1]), ny, nx, nz); 
-    grad_phi_struct = reshape( permute(AD_grad_phi, [3,2,1]), ny,nx,nz);
+    grad_theta_struct = AD_grad_theta; %reshape( permute(AD_grad_theta, [3,2,1]), ny, nx, nz); 
+    grad_phi_struct = AD_grad_phi; %reshape( permute(AD_grad_phi, [3,2,1]), ny,nx,nz);
 end
 
 if find_grad
