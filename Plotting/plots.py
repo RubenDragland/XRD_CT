@@ -487,7 +487,10 @@ def plot_performance_curves(
     sizes,
     AD_times,
     SYM_times,
-    AD_initially,
+    help_coeff=1,
+    help_line=None,
+    type="convergence",
+    AD_initially=None,
     title="Performance Curves",
     save=False,
     save_name="performance_curves",
@@ -497,19 +500,29 @@ def plot_performance_curves(
     choose_formatter(incscape=incscape)
 
     fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE, dpi=100)
-    sizes = np.array(sizes) ** 3
+
+    if type == "convergence":
+        label1 = "AD"
+        label2 = "SYM"
+        sizes = np.array(sizes) ** 3
+    else:
+        label1 = "CPU"
+        label2 = "GPU"
+        sizes = np.array(sizes)
+
     x = np.linspace(sizes[0], sizes[-1], 1000)
+    ax.plot(sizes, AD_times, label=label1, marker="o")
+    ax.plot(sizes, SYM_times, label=label2, marker="d")
+    if help_line is not None:
+        ax.plot(x, help_coeff * x ** (help_line), ":", label=f"$O({help_line})$")
 
-    ax.plot(sizes, AD_times, label="AD")
-    ax.plot(sizes, SYM_times, label="SYM")
-    ax.plot(x, x ** (0.5), ":", label="$N^{0.5}$")
-
-    ax.scatter(
-        AD_initially[0] ** 3,
-        AD_initially[1],
-        100,
-        label=f"AD {AD_initially[1]}s ",
-    )
+    if AD_initially is not None:
+        ax.scatter(
+            AD_initially[0] ** 3,
+            AD_initially[1],
+            100,
+            label=f"AD {AD_initially[1]}s ",
+        )
 
     ax.set_xlabel("Voxels")
     ax.set_ylabel("Time [s]")
@@ -521,8 +534,9 @@ def plot_performance_curves(
         loc="lower center",
         bbox_to_anchor=(0.5, -0.40),
         ncol=4,
-        fancybox=True,
-        shadow=True,
+        frameon=False,
+        # fancybox=True,
+        # shadow=True,
     )
 
     if save:
@@ -666,7 +680,7 @@ def plot_slices(
         rows_fraction * DEFAULT_FIGSIZE[1],
     )
     fig, axs = plt.subplots(rows, cols, figsize=(size1, size2), dpi=100)
-    fig.suptitle(title)
+    # fig.suptitle(title)
     axs[0].matshow(sym_data, cmap=cmap, norm=norm)
     axs[1].matshow(aut_data, cmap=cmap, norm=norm)
     if key_EXPSIN == "A":

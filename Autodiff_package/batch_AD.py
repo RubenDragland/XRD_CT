@@ -67,6 +67,8 @@ def SH_main(
             projections = scipy.io.loadmat(rf"{p_projection_filename}")["projection"][0]
         finally:
             pass
+    else:
+        projections = scipy.io.loadmat(rf"{projections}")["projection"][0]
 
     error_norm, AD_grad_coeff, AD_grad_theta, AD_grad_phi = SH_forward_backward(
         theta_struct_it,
@@ -555,19 +557,12 @@ def EXPSIN_AD_cost_function(
     # RSD: Here the new things begin:
 
     # RSD: Normalisation put on hold for now. Would have to be implemented manually...
-    # try:
-    #     normalise = p["normalise"][0, 0][0]
-    # except:
-    #     normalise = 1
-    # finally:
-    #     pass
 
-    # if normalise:
-    #     norm = np.sum(2 * np.pi * np.simpson   )
+    norm = torch.sqrt(torch_simpsons(norm_integrand, B_sq) ** 2)  # RSD: Check shape
 
     SIN_THETA_SQUARED = 1 - COS_THETA**2
 
-    I_hat_tomogram = A_sq**2 * torch.exp(-B_sq * SIN_THETA_SQUARED).to(device)
+    I_hat_tomogram = A_sq**2 * torch.exp(-B_sq * SIN_THETA_SQUARED).to(device) / norm
     I_hat_tomogram = reshape_fortran(
         I_hat_tomogram, (n_proj, ny, nx, nz, numOfsegments)
     )
@@ -999,6 +994,36 @@ def repmat_cumprod_SH(cos_theta_sh_cut, numOfCoeffs, n_proj):
     return copy_matrix
 
 
+def norm_integrand(x, B):
+
+    pi = torch.acos(torch.zeros(1)).item() * 2
+    B = B.unsqueeze(0)
+    sinx = torch.sin(x)
+    while len(sinx.shape) < len(B.shape):
+        sinx = sinx.unsqueeze(-1)
+    return 2 * pi * sinx * torch.exp(-B * sinx**2)
+
+
+def torch_simpsons(func, B, a=0, b=torch.acos(torch.zeros(1)).item() * 2, N=500):
+    """
+    Performs the Simpson's rule integration of a function func
+    between a and b with N intervals.
+    """
+    assert N % 2 == 0, "N must be even"
+    h = (b - a) / N
+    x = torch.linspace(a, b, N + 1).to(B.device)
+    return np.squeeze(
+        h
+        / 3
+        * (
+            func(x[0], B)
+            + 4 * torch.sum(func(x[1:-1:2], B), dim=0)
+            + 2 * torch.sum(func(x[2:-1:2], B), dim=0)
+            + func(x[-1], B)
+        )
+    )
+
+
 if __name__ == "__main__":
 
     new_model = 0
@@ -1051,59 +1076,164 @@ if __name__ == "__main__":
         print("Time elapsed: {}".format(tac - tic))
 
     else:
-        # Test code
-        # Workspace has to be updated with p.projection_filename.
-        workspace = scipy.io.loadmat(
-            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\workspace_batch_python_orientation.mat"
-        )
-        theta_struct_it = workspace["theta_struct"]
-        phi_struct_it = workspace["phi_struct"]
-        a_temp_it = workspace["a_temp"]
-        ny = workspace["ny"]
-        nx = workspace["nx"]
-        nz = workspace["nz"]
-        numOfsegments = workspace["numOfsegments"]
-        current_projection = (
-            1  # workspace["projection"][0]  # [2] Load from disk took additional 300ms.
-        )
-        p = workspace["p"]
-        # p[
-        #     "projection_filename"
-        # ] = r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Validation_periodic_filter1_3cube_4off_0align_stripped.mat"
-        X = workspace["X"]
-        Y = workspace["Y"]
-        Z = workspace["Z"]
-        numOfpixels = workspace["numOfpixels"]
-        unit_q_beamline = workspace["unit_q_beamline"]
-        Ylm_coef = workspace["Ylm_coef"]
-        find_coefficients = workspace["find_coefficients"]
-        find_orientation = workspace["find_orientation"]
-        numOfCoeffs = workspace["numOfCoeffs"]
-        numOfvoxels = workspace["numOfvoxels"]
+        # # Test code
+        # # Workspace has to be updated with p.projection_filename.
+        # workspace = scipy.io.loadmat(
+        #     r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\workspace_batch_python_orientation.mat"
+        # )
+        # theta_struct_it = workspace["theta_struct"]
+        # phi_struct_it = workspace["phi_struct"]
+        # a_temp_it = workspace["a_temp"]
+        # ny = workspace["ny"]
+        # nx = workspace["nx"]
+        # nz = workspace["nz"]
+        # numOfsegments = workspace["numOfsegments"]
+        # current_projection = (
+        #     1  # workspace["projection"][0]  # [2] Load from disk took additional 300ms.
+        # )
+        # p = workspace["p"]
+        # # p[
+        # #     "projection_filename"
+        # # ] = r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Validation_periodic_filter1_3cube_4off_0align_stripped.mat"
+        # X = workspace["X"]
+        # Y = workspace["Y"]
+        # Z = workspace["Z"]
+        # numOfpixels = workspace["numOfpixels"]
+        # unit_q_beamline = workspace["unit_q_beamline"]
+        # Ylm_coef = workspace["Ylm_coef"]
+        # find_coefficients = workspace["find_coefficients"]
+        # find_orientation = workspace["find_orientation"]
+        # numOfCoeffs = workspace["numOfCoeffs"]
+        # numOfvoxels = workspace["numOfvoxels"]
 
-        tic = time.time()
+        # tic = time.time()
 
-        SH_main(
-            theta_struct_it,
-            phi_struct_it,
-            a_temp_it,
-            ny,
-            nx,
-            nz,
-            numOfsegments,
-            current_projection,
-            p,
-            X,
-            Y,
-            Z,
-            numOfpixels,
-            unit_q_beamline,
-            Ylm_coef,
-            find_coefficients,
-            find_orientation,
-            numOfCoeffs,
-            numOfvoxels,
-            find_grad=True,
+        # SH_main(
+        #     theta_struct_it,
+        #     phi_struct_it,
+        #     a_temp_it,
+        #     ny,
+        #     nx,
+        #     nz,
+        #     numOfsegments,
+        #     current_projection,
+        #     p,
+        #     X,
+        #     Y,
+        #     Z,
+        #     numOfpixels,
+        #     unit_q_beamline,
+        #     Ylm_coef,
+        #     find_coefficients,
+        #     find_orientation,
+        #     numOfCoeffs,
+        #     numOfvoxels,
+        #     find_grad=True,
+        # )
+        # tac = time.time()
+        # print(f"Time elapsed: {tac - tic}")
+
+        # # Run grad performance test.
+        import json
+
+        try:
+            with open("performance_results.json") as f:
+                performance_results = json.load(f)
+        except:
+            performance_results = {}
+
+        workspace_names = [
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Dummy_periodic_filter1_5cube_0off_0alignworkspace.mat",
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Dummy_periodic_filter1_10cube_0off_0alignworkspace.mat",
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Dummy_periodic_filter1_11cube_4off_0alignworkspace.mat",
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Dummy_periodic_filter1_20cube_0off_0alignworkspace.mat",
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Dummy_periodic_filter1_17cube_8off_0alignworkspace.mat",
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Dummy_periodic_filter1_30cube_0off_0alignworkspace.mat",
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Dummy_periodic_filter1_27cube_8off_0alignworkspace.mat",
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Dummy_periodic_filter1_37cube_8off_0alignworkspace.mat",
+        ]
+        workspace_names = [
+            r"/home/rubensd/Documents/MATLAB/Data sets/Dummy_periodic_filter1_5cube_0off_0alignworkspace.mat",
+            r"/home/rubensd/Documents/MATLAB/Data sets/Dummy_periodic_filter1_10cube_0off_0alignworkspace.mat",
+            r"/home/rubensd/Documents/MATLAB/Data sets/Dummy_periodic_filter1_11cube_4off_0alignworkspace.mat",
+            r"/home/rubensd/Documents/MATLAB/Data sets/Dummy_periodic_filter1_20cube_0off_0alignworkspace.mat",
+            r"/home/rubensd/Documents/MATLAB/Data sets/Dummy_periodic_filter1_17cube_8off_0alignworkspace.mat",
+            r"/home/rubensd/Documents/MATLAB/Data sets/Dummy_periodic_filter1_30cube_0off_0alignworkspace.mat",
+            r"/home/rubensd/Documents/MATLAB/Data sets/Dummy_periodic_filter1_27cube_8off_0alignworkspace.mat",
+            r"/home/rubensd/Documents/MATLAB/Data sets/Dummy_periodic_filter1_37cube_8off_0alignworkspace.mat",
+        ]
+        voxels = np.array(
+            [5**3, 10**3, 15**3, 20**3, 25**3, 30**3, 35**3, 45**3]
         )
-        tac = time.time()
-        print(f"Time elapsed: {tac - tic}")
+        gradient_compute_times = np.zeros(len(workspace_names))
+
+        simulation = "GPU"
+        performance_results[simulation] = {}
+
+        performance_results[simulation]["workspace_names"] = workspace_names
+        performance_results[simulation]["voxels"] = voxels
+
+        for i, path in enumerate(workspace_names):
+            workspace = scipy.io.loadmat(path)
+            theta_struct_it = workspace["theta_struct"]
+            phi_struct_it = workspace["phi_struct"]
+            a_temp_it = workspace["a_temp"]
+            ny = workspace["ny"]
+            nx = workspace["nx"]
+            nz = workspace["nz"]
+            numOfsegments = workspace["numOfsegments"]
+            current_projection = path[: -(len("workspace.mat"))] + ".mat"
+            print(current_projection)
+            p = workspace["p"]
+            X = workspace["X"]
+            Y = workspace["Y"]
+            Z = workspace["Z"]
+            numOfpixels = workspace["numOfpixels"]
+            unit_q_beamline = workspace["unit_q_beamline"]
+            Ylm_coef = workspace["Ylm_coef"]
+            find_coefficients = 1  # workspace["find_coefficients"]
+            find_orientation = 1  # workspace["find_orientation"]
+            numOfCoeffs = workspace["numOfCoeffs"]
+            numOfvoxels = workspace["numOfvoxels"]
+
+            tic = time.time()
+
+            SH_main(
+                theta_struct_it,
+                phi_struct_it,
+                a_temp_it,
+                ny,
+                nx,
+                nz,
+                numOfsegments,
+                current_projection,
+                p,
+                X,
+                Y,
+                Z,
+                numOfpixels,
+                unit_q_beamline,
+                Ylm_coef,
+                find_coefficients,
+                find_orientation,
+                numOfCoeffs,
+                numOfvoxels,
+                find_grad=True,
+            )
+            tac = time.time()
+            print(f"Time elapsed: {tac - tic}")
+            gradient_compute_times[i] = tac - tic
+
+        performance_results[simulation][
+            "gradient_compute_times"
+        ] = gradient_compute_times
+
+        try:
+            with open("performance_results.json", "w") as f:
+                json.dump(performance_results, f)
+        except:
+            print("Failed to save performance results.")
+            np.save(f"{simulation}_performance_results.npy", performance_results)
+            np.save(f"{simulation}_gradient_compute_times.npy", gradient_compute_times)
+        finally:
+            print("Performance results saved.")
