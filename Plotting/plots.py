@@ -295,7 +295,7 @@ def plot_SH_aligned_distribution(
             color="black",
             linestyle="--",
             alpha=0.69,
-            label=f"Solution: {dummy_values[i]:.2f}",
+            label=f"Solution: {dummy_values[i]:.4f}",
         )
 
         AD_popt, cov1 = curve_fit(lorentzian, AD_ax[1][:-1], AD_ax[0])
@@ -514,7 +514,14 @@ def plot_performance_curves(
     ax.plot(sizes, AD_times, label=label1, marker="o")
     ax.plot(sizes, SYM_times, label=label2, marker="d")
     if help_line is not None:
-        ax.plot(x, help_coeff * x ** (help_line), ":", label=f"$O({help_line})$")
+        help_line_str = str(help_line)
+        help_coeff_str = str(help_coeff)
+        ax.plot(
+            x,
+            help_coeff * x ** (help_line),
+            ":",
+            label=f"${help_coeff_str}N^{{{help_line_str}}}$",
+        )
 
     if AD_initially is not None:
         ax.scatter(
@@ -525,6 +532,9 @@ def plot_performance_curves(
         )
 
     ax.set_xlabel("Voxels")
+    ax.set_xticks(
+        [1e2, 1e3, 1e4, 1e5], labels=["\$10^2$", "\$10^3$", "\$10^4$", "\$10^5$"]
+    )
     ax.set_ylabel("Time [s]")
     ax.set_yscale("log")
     ax.set_xscale("log")
@@ -555,10 +565,13 @@ def plot_loss_curves(
     size_fraction=1.2,
     logcurve=False,
     yloglim=(1e-1, 1e1),
+    incscape=True,
 ):
     """
     Plots convergence curves for the given data_dict
     """
+
+    choose_formatter(incscape=incscape)  # RSD: Working?
 
     if logcurve:
         cols = 1
@@ -684,7 +697,7 @@ def plot_slices(
     axs[0].matshow(sym_data, cmap=cmap, norm=norm)
     axs[1].matshow(aut_data, cmap=cmap, norm=norm)
     if key_EXPSIN == "A":
-        axs[2].matshow(exp_data**2, cmap=cmap, norm=norm)
+        axs[2].matshow(exp_data, cmap=cmap, norm=norm)
     else:
         axs[2].matshow(exp_data, cmap=cmap, norm=norm)
 

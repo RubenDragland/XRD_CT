@@ -556,9 +556,9 @@ def EXPSIN_AD_cost_function(
 
     # RSD: Here the new things begin:
 
-    # RSD: Normalisation put on hold for now. Would have to be implemented manually...
-
-    norm = torch.sqrt(torch_simpsons(norm_integrand, B_sq) ** 2)  # RSD: Check shape
+    # RSD: Simpsons integral and shape treatment.
+    norm = torch.sqrt(torch_simpsons(norm_integrand, B_sq) ** 2)
+    norm = norm.unsqueeze(0).unsqueeze(-1)
 
     SIN_THETA_SQUARED = 1 - COS_THETA**2
 
@@ -730,6 +730,16 @@ def SH_AD_cost_function(
 
     # RSD: Finished until here. shape n_proj, ny, nx, nz, numOfsegments
     proj_out_all = arb_projection(data_synt_vol, X, Y, Z, Rot_exp_now, p, xout, yout)
+
+    # if 0:
+    #     data = []
+    #     for i in range(n_proj):
+    #         data.append(proj_out_all[i].detach().cpu().numpy())
+
+    #     AD_projections = {}
+    #     AD_projections["data"] = data
+    #     scipy.io.savemat("AD_projections.mat", AD_projections)
+    #     print("Saved. Now abort.")
 
     logging.debug("data shape: {}".format(data.shape))
 
@@ -1008,7 +1018,9 @@ def torch_simpsons(func, B, a=0, b=torch.acos(torch.zeros(1)).item() * 2, N=500)
     """
     Performs the Simpson's rule integration of a function func
     between a and b with N intervals.
+    NB! Do not use original variable. Use B_sq instead.
     """
+    B = torch.squeeze(B)
     assert N % 2 == 0, "N must be even"
     h = (b - a) / N
     x = torch.linspace(a, b, N + 1).to(B.device)
@@ -1026,12 +1038,12 @@ def torch_simpsons(func, B, a=0, b=torch.acos(torch.zeros(1)).item() * 2, N=500)
 
 if __name__ == "__main__":
 
-    new_model = 0
+    new_model = 1
 
     if new_model:
         # RSD: Wrong file.
         workspace = scipy.io.loadmat(
-            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\workspace_batch_python_orientation.mat"
+            r"C:\Users\Bruker\OneDrive\Dokumenter\NTNU\XRD_CT\Data sets\Debug Data\new_model_retry.mat"
         )
 
         theta = workspace["theta_struct"]
