@@ -159,6 +159,38 @@ XRDCT_palette_cmp = get_continuous_cmap(
     # # [     "#E57A77","#EEBAB4","#7CA1CC",]
 )
 
+# XRDCT_cyclic_cmp = get_continuous_cmap(
+#     [
+#         "#1F449C",
+#         "#3D65A5",
+#         "#7CA1CC",
+#         "#A8B6CC",
+#         "#EEBAB4",
+#         "#E57A77",
+#         "#F05039",
+#         "#F05039",
+#         "#E57A77",
+#         "#EEBAB4",
+#         "#A8B6CC",
+#         "#7CA1CC",
+#         "#3D65A5",
+#         "#1F449C",
+#     ]
+# )
+
+XRDCT_cyclic_cmp = get_continuous_cmap(
+    [
+        "#1F449C",
+        "#A8B6CC",
+        "#7CA1CC",
+        "#E57A77",
+        "#F05039",
+        "#EEBAB4",
+        "A8B6CC",
+        "#1F449C",
+    ]
+)
+
 
 ############# DATA ANAL SECTION ####################
 
@@ -185,11 +217,11 @@ def find_vmin_vmax(AD, symbolic, std_c):
     Gives much space on left for legend
     """
     # Additional space to legend.
-    val1_lower = np.mean(AD) - 1.2 * std_c * np.std(AD)
-    val2_lower = np.mean(symbolic) - 1.2 * std_c * np.std(symbolic)
+    val1_lower = np.mean(AD) - std_c * np.std(AD)
+    val2_lower = np.mean(symbolic) - std_c * np.std(symbolic)
 
-    val1_upper = np.mean(AD) + std_c * np.std(AD)
-    val2_upper = np.mean(symbolic) + std_c * np.std(symbolic)
+    val1_upper = np.mean(AD) + 1.2 * std_c * np.std(AD)
+    val2_upper = np.mean(symbolic) + 1.2 * std_c * np.std(symbolic)
 
     vmin = min(val1_lower, val2_lower)
     vmax = max(val1_upper, val2_upper)
@@ -230,7 +262,7 @@ def plot_SH_aligned_distribution(
             rows, cols = 4, 1
     elif attribute == "angles":
         keys = ["theta", "phi"]
-        titles = keys  # [r"$\theta$", r"$\varphi$"] Need to fix this somehow. Perhaps extension to incscape?
+        titles = [r"$\theta$", r"$\varphi$"]
         rows, cols = 1, 2
         title += "Orientation"
         save_name += "angles"
@@ -242,6 +274,8 @@ def plot_SH_aligned_distribution(
     slice1, slice2 = slice
     ind = np.arange(slice1, slice2)
     X, Y, Z = np.meshgrid(ind, ind, ind)
+
+    return_dict = {}
 
     if not size_fraction:
         cols_fraction = 1
@@ -265,8 +299,8 @@ def plot_SH_aligned_distribution(
             )
         elif attribute == "coeffs" and morefigs:
             vmin, vmax = (
-                dummy_values[i] - std_c * dummy_values[i],
-                dummy_values[i] + std_c * dummy_values[i],
+                dummy_values[i] - 1 / std_c * dummy_values[i],
+                dummy_values[i] + 1.2 / std_c * dummy_values[i],
             )
         else:
             vmin, vmax = find_vmin_vmax(AD[key][X, Y, Z], symbolic[key][X, Y, Z], std_c)
@@ -295,7 +329,7 @@ def plot_SH_aligned_distribution(
             color="black",
             linestyle="--",
             alpha=0.69,
-            label=f"Solution: {dummy_values[i]:.4f}",
+            label=f"{dummy_values[i]:.4f}",
         )
 
         AD_popt, cov1 = curve_fit(lorentzian, AD_ax[1][:-1], AD_ax[0])
@@ -303,6 +337,11 @@ def plot_SH_aligned_distribution(
 
         AD_fit = lorentzian(AD_ax[1], *AD_popt)
         SYM_fit = lorentzian(SYM_ax[1], *SYM_popt)
+
+        return_dict[key] = {
+            "AD": AD_popt,
+            "SYM": SYM_popt,
+        }
 
         AD_color = AD_ax[-1].patches[0].get_facecolor()
         ax.plot(
@@ -324,13 +363,13 @@ def plot_SH_aligned_distribution(
         handles, labels = ax.get_legend_handles_labels()
         sol_handle = handles[2]
         sol_label = labels[2]
-        ax.legend([sol_handle], [sol_label], loc="upper left", frameon=False)
+        ax.legend([sol_handle], [sol_label], loc="upper right", frameon=False)
         ax.xaxis.set_major_locator(plt.MaxNLocator(ticks))
         ax.yaxis.set_major_locator(plt.MaxNLocator(ticks))
 
     fig.suptitle(title)
-    fig.text(-0.01, 0.5, "Count", rotation="vertical", va="center")
-    fig.text(0.5, -0.01, "Value", ha="center")
+    fig.text(-0.02, 0.5, "Count", rotation="vertical", va="center")
+    fig.text(0.5, -0.03, "Value", ha="center")
 
     bbox_handles = [handles[i] for i in [0, 1]]  # , 3, 4]]
     bbox_labels = [labels[i] for i in [0, 1]]  # , 3, 4]]
@@ -347,7 +386,7 @@ def plot_SH_aligned_distribution(
     if save:
         plt.savefig(r"../Plotting/thesis_plots/" + save_name + ".svg")
     plt.show()
-    return
+    return return_dict
 
 
 def plot_SH_deviation_grad_scatter(
@@ -386,7 +425,7 @@ def plot_SH_deviation_grad_scatter(
         2,
         1,
         figsize=(DEFAULT_FIGSIZE[0], 2 * DEFAULT_FIGSIZE[1]),
-        dpi=100,
+        dpi=600,
         sharex=True,
     )
 
@@ -426,7 +465,7 @@ def plot_SH_deviation_grad_scatter(
 
     plt.suptitle(title)
     if save:
-        fig.savefig(r"../Plotting/thesis_plots/" + save_name + ".svg")
+        fig.savefig(r"../Plotting/thesis_plots/" + save_name + ".png")
     plt.show()
     return
 
@@ -487,6 +526,7 @@ def plot_performance_curves(
     sizes,
     AD_times,
     SYM_times,
+    SYM_dict=None,
     help_coeff=1,
     help_line=None,
     type="convergence",
@@ -506,8 +546,8 @@ def plot_performance_curves(
         label2 = "SYM"
         sizes = np.array(sizes) ** 3
     else:
-        label1 = "CPU"
-        label2 = "GPU"
+        label1 = "AD laptop"
+        label2 = "AD CPU/GPU"
         sizes = np.array(sizes)
 
     x = np.linspace(sizes[0], sizes[-1], 1000)
@@ -535,19 +575,53 @@ def plot_performance_curves(
     ax.set_xticks(
         [1e2, 1e3, 1e4, 1e5], labels=["\$10^2$", "\$10^3$", "\$10^4$", "\$10^5$"]
     )
+
+    if SYM_dict is not None:
+        ax.plot(
+            sizes,
+            SYM_dict["SYM_ParFor"],
+            label="SYM Parallel",
+            marker="P",
+            color="#EEBAB4",
+        )
+        ax.plot(
+            sizes,
+            SYM_dict["SYM"],
+            label="SYM",
+            marker="X",
+            color="#A8B6CC",
+            linestyle="dashed",
+        )
+
     ax.set_ylabel("Time [s]")
     ax.set_yscale("log")
     ax.set_xscale("log")
     ax.set_title(title)
     # ax.legend(loc = "upper center")
-    ax.legend(
-        loc="lower center",
-        bbox_to_anchor=(0.5, -0.40),
-        ncol=4,
+    handles = ax.get_legend_handles_labels()[0]
+    labels = ax.get_legend_handles_labels()[1]
+
+    help_leg_handle = handles[2]
+    help_leg_label = labels[2]
+    help_leg = ax.legend(
+        loc="upper left",
+        handles=[help_leg_handle],
+        labels=[help_leg_label],
         frameon=False,
+    )
+    rest_handles = handles[0:2] + handles[3:]
+    rest_labels = labels[0:2] + labels[3:]
+    plt.legend(
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.45),
+        ncol=2,
+        frameon=False,
+        handles=rest_handles,
+        labels=rest_labels,
         # fancybox=True,
         # shadow=True,
     )
+    plt.gca().add_artist(help_leg)
 
     if save:
         fig.savefig(r"../Plotting/thesis_plots/" + save_name + ".svg")
@@ -594,34 +668,24 @@ def plot_loss_curves(
         ax.set_xlabel("Iteration")
         ax.set_ylabel("Loss")
 
-        start_value = np.max([data_dict[key][0][0] for key in data_dict.keys()])
-
         for i, (key, value) in enumerate(data_dict.items()):
 
             cycler = ax._get_lines.prop_cycler
             this_color = next(cycler)["color"]
             x = np.arange(0, len(value[0]), dtype=np.float64)
-            # curve = start_value * ((value[0][-1] / value[0][0]) ** (1 / len(x))) ** x
-            decay = (value[0][-1] / value[0][0]) ** (1 / len(x))
             params = curve_fit(exp_decay, x, value[0])[0]
-            decay = params[1]
-            curve = exp_decay(x, *params)
-            # ax.plot(
-            #     x,
-            #     curve,
-            #     label=f"{key} b={decay:.2f} "
-            #     + "$Ab^{x}$",
-            #     color=this_color,
-            #     linestyle="-.",
-            # )
+
+            plot_value = (
+                (value[0] / value[0][0]) if (len(data_dict.keys()) > 3) else value[0]
+            )
 
             ax.plot(
-                value[0],
+                plot_value,
                 color=this_color,
                 label=f"{key} {value[-1]:.0f}s",
             )
 
-        ax.legend(loc="upper right")
+        ax.legend(loc="upper right", frameon=False)
 
     plt.suptitle(title)
     if save:
@@ -643,6 +707,7 @@ def plot_slices(
     save_name="reconstruction_slices",
     incscape=False,
     size_fraction=1,
+    DoA_tol=-1,
 ):
 
     choose_formatter(incscape=incscape)
@@ -673,13 +738,60 @@ def plot_slices(
         expsin[key_EXPSIN][
             slice_y[0] : slice_y[1], slice_x[0] : slice_x[1], slice_z[0] : slice_z[1]
         ]
-    )
+    ) * (expsin.sign if key_EXPSIN == "B" else 1)
 
     min_value = np.min([sym_data, aut_data, exp_data])
     max_value = np.max([sym_data, aut_data, exp_data])
 
-    cmap = XRDCT_palette_cmp
-    norm = mpl.colors.Normalize(vmin=min_value, vmax=max_value)
+    cmap = (
+        XRDCT_cyclic_cmp
+        if (key_SH == "theta" or key_SH == "phi")
+        else XRDCT_palette_cmp
+    )
+    norm = (
+        mpl.colors.Normalize(vmin=0, vmax=np.pi)
+        if (key_SH == "theta" or key_SH == "phi")
+        else mpl.colors.Normalize(vmin=min_value, vmax=max_value)
+    )
+    if key_SH == "DoA":
+        norm = mpl.colors.Normalize(vmin=-0.5, vmax=1)
+
+        # sym_data = np.where(
+        #     np.squeeze(
+        #         symbolic["a0"][
+        #             slice_y[0] : slice_y[1],
+        #             slice_x[0] : slice_x[1],
+        #             slice_z[0] : slice_z[1],
+        #         ]
+        #     )
+        #     > DoA_tol,
+        #     sym_data,
+        #     0,
+        # )
+        # aut_data = np.where(
+        #     np.squeeze(
+        #         automatic["a0"][
+        #             slice_y[0] : slice_y[1],
+        #             slice_x[0] : slice_x[1],
+        #             slice_z[0] : slice_z[1],
+        #         ]
+        #     )
+        #     > DoA_tol,
+        #     aut_data,
+        #     0,
+        # )
+        # exp_data = np.where(
+        #     np.squeeze(
+        #         expsin["A"][
+        #             slice_y[0] : slice_y[1],
+        #             slice_x[0] : slice_x[1],
+        #             slice_z[0] : slice_z[1],
+        #         ]
+        #     )
+        #     > DoA_tol,
+        #     exp_data,
+        #     0,
+        # )
 
     if not size_fraction:
         cols_fraction = 1
@@ -696,10 +808,7 @@ def plot_slices(
     # fig.suptitle(title)
     axs[0].matshow(sym_data, cmap=cmap, norm=norm)
     axs[1].matshow(aut_data, cmap=cmap, norm=norm)
-    if key_EXPSIN == "A":
-        axs[2].matshow(exp_data, cmap=cmap, norm=norm)
-    else:
-        axs[2].matshow(exp_data, cmap=cmap, norm=norm)
+    axs[2].matshow(exp_data, cmap=cmap, norm=norm)
 
     axs[0].set_title("SYM")
     axs[1].set_title("AD")
@@ -713,12 +822,38 @@ def plot_slices(
 
     fig.subplots_adjust(bottom=0.1)
     cbar_ax = fig.add_axes([0.2, 0.2, 0.6, 0.05])
-    plt.colorbar(
-        mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
-        cax=cbar_ax,
-        label=f"{key_SH}[{key_EXPSIN}]-value",
-        orientation="horizontal",
-    )
+
+    if key_SH == "phi":
+        label = r"$\varphi$"
+        plt.colorbar(
+            mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+            cax=cbar_ax,
+            label=f"{label} [rad]",
+            orientation="horizontal",
+        )
+    elif key_SH == "theta":
+        label = r"$\theta$"
+        plt.colorbar(
+            mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+            cax=cbar_ax,
+            label=f"{label} [rad]",
+            orientation="horizontal",
+        )
+    elif key_SH == "DoA":
+        label = r"DoA [a.u.]"
+        plt.colorbar(
+            mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+            cax=cbar_ax,
+            label=f"{label}",
+            orientation="horizontal",
+        )
+    else:
+        plt.colorbar(
+            mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+            cax=cbar_ax,
+            label=f"{key_SH}/{key_EXPSIN} [a.u.]",
+            orientation="horizontal",
+        )
 
     if save:
         fig.savefig(r"../Plotting/thesis_plots/" + save_name + ".svg")
@@ -726,6 +861,906 @@ def plot_slices(
     plt.show()
 
     return
+
+
+def plot_individial_reconstructions(
+    symbolic,
+    automatic,
+    expsin,
+    slice,
+    save=False,
+    save_name="reconstruction_slices",
+    incscape=True,
+    size_fraction=1,
+    arrow_length=0.1,
+    intensity_threshold=2,
+    view=None,
+):
+
+    choose_formatter(incscape=incscape)
+    res = {"SYM": symbolic, "AD": automatic, "EXPSIN": expsin}
+    slice_y, slice_x, slice_z = slice
+
+    if not size_fraction:
+        cols_fraction = 1
+        rows_fraction = 1
+    else:
+        cols_fraction = 1 / size_fraction
+        rows_fraction = 1 / size_fraction
+
+    size1, size2 = (
+        cols_fraction * DEFAULT_FIGSIZE[0],
+        rows_fraction * DEFAULT_FIGSIZE[1],
+    )
+
+    cmap = XRDCT_palette_cmp
+    norm = mpl.colors.Normalize(vmin=-0.5, vmax=1)
+    colors = [
+        elem.DoA[
+            slice_y[0] : slice_y[-1],
+            slice_x[0] : slice_x[-1],
+            slice_z[0] : slice_z[-1],
+        ]
+        for elem in res.values()
+    ]
+    for i, key in enumerate(res.keys()):
+
+        fig = plt.figure(figsize=(size1, size2))
+        ax = fig.add_subplot(111, projection="3d")
+        # ax.set_title(key)
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_zticklabels([])
+        ax.grid(False)
+        plt.axis("off")
+
+        if view == None:
+            ax.set_xlim(0, len(symbolic.a0))
+            ax.set_ylim(0, len(symbolic.a0[0]))
+            ax.set_zlim(0, len(symbolic.a0[0, 0]))
+            ax.text(
+                len(symbolic.a0) / 2, len(symbolic.a0[0]), len(symbolic.a0[0, 0]), key
+            )
+        else:
+            ax.set_xlim(view[0][0], view[0][1])
+            ax.set_ylim(view[1][0], view[1][1])
+            ax.set_zlim(view[2][0], view[2][1])
+            ax.text2D(0.45, 0.7, s=key, fontsize=16, transform=ax.transAxes)
+
+        x, y, z = np.mgrid[
+            slice_y[0] : slice_y[-1], slice_x[0] : slice_x[-1], slice_z[0] : slice_z[-1]
+        ]
+
+        if key == "EXPSIN":
+            check_value = res[key].A[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ]
+        else:
+            check_value = np.abs(
+                res[key].a0[
+                    slice_y[0] : slice_y[-1],
+                    slice_x[0] : slice_x[-1],
+                    slice_z[0] : slice_z[-1],
+                ]
+            )
+
+        above_threshold = np.argwhere(check_value >= intensity_threshold)
+        print(f"{key}: {above_threshold.shape[0]} voxels above threshold")
+        x, y, z = (
+            x[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            y[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            z[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+        )
+
+        # RSD: Nb! Convention of theta and phi.
+        dirx, diry, dirz = (
+            (np.sin(res[key].theta) * np.cos(res[key].phi))[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+            (np.sin(res[key].phi) * np.sin(res[key].theta))[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+            np.cos(res[key].theta)[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+        )
+
+        dirx, diry, dirz = (
+            dirx[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            diry[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            dirz[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+        )
+
+        q = ax.quiver(
+            x,
+            y,
+            z,
+            dirx,
+            diry,
+            dirz,
+            cmap=cmap,
+            norm=norm,
+            length=arrow_length,
+            pivot="middle",
+            arrow_length_ratio=0,
+            normalize=True,
+        )
+        color_floats = colors[i][
+            above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]
+        ].reshape(
+            -1
+        )  # RSD: Still not sure about this one.
+        q.set_array(color_floats)
+
+        # S = np.array([x, y, z, [dirx, diry, dirz, color_floats]])
+        # scipy.io.savemat(f"{save_name}_{key}.mat", mdict={"S": S})
+
+        if save:
+            fig.savefig(r"../Plotting/thesis_plots/" + save_name + key + ".svg")
+        plt.show()
+
+    fig, cbarax = plt.subplots(figsize=(size1, size2 / 5))
+    plt.colorbar(
+        mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+        cax=cbarax,
+        label=f"Degree of Anisotropy",
+        orientation="horizontal",
+    )
+    if save:
+        fig.savefig(r"../Plotting/thesis_plots/" + save_name + "colorbar.svg")
+    plt.show()
+
+
+def plot_reconstruction(
+    symbolic,
+    automatic,
+    expsin,
+    slice,
+    shape="horizontal",
+    degree_of_anisotropy=1,
+    title="Reconstruction Slices",
+    save=False,
+    save_name="reconstruction_slices",
+    incscape=True,
+    size_fraction=1,
+    arrow_length=0.1,
+    intensity_threshold=2,
+    view=None,
+):
+
+    choose_formatter(incscape=incscape)
+
+    res = {"SYM": symbolic, "AD": automatic, "EXPSIN": expsin}
+
+    slice_y, slice_x, slice_z = slice
+
+    if shape == "vertical":
+        cols = 1
+        rows = 3
+    elif shape == "horizontal":
+        cols = 3
+        rows = 1
+    else:
+        raise ValueError("shape must be either vertical or horizontal")
+
+    if not size_fraction:
+        cols_fraction = 1
+        rows_fraction = 1
+    else:
+        cols_fraction = cols / size_fraction
+        rows_fraction = rows / size_fraction
+
+    size1, size2 = (
+        cols_fraction * DEFAULT_FIGSIZE[0],
+        rows_fraction * DEFAULT_FIGSIZE[1],
+    )
+
+    if degree_of_anisotropy:
+        cmap = XRDCT_palette_cmp
+        norm = mpl.colors.Normalize(vmin=-0.5, vmax=1)
+        colors = [
+            elem.DoA[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ]
+            for elem in res.values()
+        ]
+        # RSD: Something weird here.
+
+    else:
+        cmap = XRDCT_palette_cmp
+        theta_re, phi_img = np.mgrid[0 : np.pi : 100j, 0 : np.pi : 100j]
+        angle = np.angle(theta_re + 1j * phi_img)
+        norm = mpl.colors.Normalize(vmin=np.min(angle), vmax=np.max(angle))
+        colors = [
+            np.angle(elem.theta + 1j * elem.phi)[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ]
+            for elem in res.values()
+        ]
+
+    # fig, axs = plt.subplots(rows, cols, figsize=(size1, size2))
+    fig = plt.figure(figsize=(size1, size2), constrained_layout=True)
+
+    # for i, (key, ax) in enumerate(zip(["SYM", "AD", "EXPSIN"], axs.reshape(-1))):
+    for i, key in enumerate(["SYM", "AD", "EXPSIN"]):
+        ax = fig.add_subplot(rows, cols, i + 1, projection="3d")
+        # ax.set_title(key)
+
+        x, y, z = np.mgrid[
+            slice_y[0] : slice_y[-1], slice_x[0] : slice_x[-1], slice_z[0] : slice_z[-1]
+        ]
+
+        if key == "EXPSIN":
+            check_value = res[key].A[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ]
+        else:
+            check_value = np.abs(
+                res[key].a0[
+                    slice_y[0] : slice_y[-1],
+                    slice_x[0] : slice_x[-1],
+                    slice_z[0] : slice_z[-1],
+                ]
+            )
+
+        above_threshold = np.argwhere(check_value >= intensity_threshold)
+        print(f"{key}: {above_threshold.shape[0]} voxels above threshold")
+        x, y, z = (
+            x[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            y[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            z[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+        )
+
+        # RSD: Nb! Convention of theta and phi.
+        dirx, diry, dirz = (
+            (np.sin(res[key].theta) * np.cos(res[key].phi))[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+            (np.sin(res[key].phi) * np.sin(res[key].theta))[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+            np.cos(res[key].theta)[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+        )
+
+        dirx, diry, dirz = (
+            dirx[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            diry[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            dirz[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+        )
+
+        q = ax.quiver(
+            x,
+            y,
+            z,
+            dirx,
+            diry,
+            dirz,
+            cmap=cmap,
+            norm=norm,
+            length=arrow_length,
+            pivot="middle",
+            arrow_length_ratio=0,
+            normalize=True,
+        )
+        color_floats = colors[i][
+            above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]
+        ].reshape(
+            -1
+        )  # RSD: Still not sure about this one.
+        q.set_array(color_floats)
+
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_zticklabels([])
+        ax.grid(False)
+        plt.axis("off")
+        # ax.set_xlabel("x")
+        # ax.set_ylabel("y")
+        # ax.set_zlabel("z")
+
+        if view == None:
+            ax.set_xlim(0, len(symbolic.a0))
+            ax.set_ylim(0, len(symbolic.a0[0]))
+            ax.set_zlim(0, len(symbolic.a0[0, 0]))
+            ax.text(
+                len(symbolic.a0) / 2, len(symbolic.a0[0]), len(symbolic.a0[0, 0]), key
+            )
+        else:
+            ax.set_xlim(view[0][0], view[0][1])
+            ax.set_ylim(view[1][0], view[1][1])
+            ax.set_zlim(view[2][0], view[2][1])
+            ax.text2D(
+                0.45, 0.7, s=key, fontsize=16, transform=ax.transAxes
+            )  # 0*(view[0][0] + view[0][1])/3, view[1][1] , view[2][1]
+
+    # RSD: Path set vertices to draw a marker manually
+
+    if degree_of_anisotropy:
+        cbar_ax = fig.add_axes([0.2 / cols, -0.1 / rows, 0.6 / cols, 0.05 / rows])
+        plt.colorbar(
+            mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+            cax=cbar_ax,
+            label=f"Degree of Anisotropy",
+            orientation="horizontal",
+        )
+    else:
+        cbar_ax = fig.add_axes([0.33 / cols, -0.4 / rows, 0.4 / cols, 0.4 / rows])
+        cbar_ax.imshow(angle, cmap=cmap, norm=norm)
+        cbar_ax.set_xlabel(r"$\theta$")
+        cbar_ax.set_ylabel(r"$\varphi$")
+        cbar_ax.set_xticks(np.linspace(0, 100, 3))
+        cbar_ax.set_xticklabels([r"$0$", r"$\pi/2$", r"$\pi$"])
+        cbar_ax.set_yticks(np.linspace(0, 100, 3))
+        cbar_ax.set_yticklabels([r"$0$", r"$\pi/2$", r"$\pi$"])
+
+    fig.subplots_adjust(left=0, bottom=-0.2, right=1, top=1, wspace=-0.4, hspace=-0.4)
+    # width = fig.get_figwidth()
+    # height = fig.get_figheight()
+    # fig.set_figwidth(width)
+    # fig.set_figheight(height)
+
+    if save:
+        fig.savefig(r"../Plotting/thesis_plots/" + save_name + ".svg")
+
+    plt.show()
+    return
+
+
+def plot_2D_vector_field(
+    symbolic,
+    automatic,
+    expsin,
+    slice,
+    save=False,
+    save_name="2D_vector_field",
+    incscape=True,
+    size_fraction=1,
+    arrow_length=0.1,
+    intensity_threshold=2,
+    view=None,
+    shape="horizontal",
+):
+    import matplotlib.path as mpath
+    import matplotlib.lines as mlines
+    import matplotlib.patches as mpatches
+    from matplotlib.collections import PatchCollection
+    from matplotlib.collections import EllipseCollection
+
+    choose_formatter(incscape=incscape)
+
+    if shape == "vertical":
+        cols = 1
+        rows = 3
+    elif shape == "horizontal":
+        cols = 3
+        rows = 1
+    else:
+        raise ValueError("shape must be either vertical or horizontal")
+
+    res = {"SYM": symbolic, "AD": automatic, "EXPSIN": expsin}
+    slice_y, slice_x, slice_z = slice
+
+    if not size_fraction:
+        cols_fraction = 1
+        rows_fraction = 1
+    else:
+        cols_fraction = cols / size_fraction
+        rows_fraction = rows / size_fraction
+
+    size1, size2 = (
+        cols_fraction * DEFAULT_FIGSIZE[0],
+        rows_fraction * DEFAULT_FIGSIZE[1],
+    )
+
+    cmap = XRDCT_palette_cmp
+    norm = mpl.colors.Normalize(vmin=-0.5, vmax=1)
+    colors = [
+        elem.DoA[
+            slice_y[0] : slice_y[-1],
+            slice_x[0] : slice_x[-1],
+            slice_z[0] : slice_z[-1],
+        ]
+        for elem in res.values()
+    ]
+
+    fig, axs = plt.subplots(rows, cols, figsize=(size1, size2))
+
+    for i, (key, ax) in enumerate(zip(res.keys(), axs.flatten())):
+
+        dirx, diry, dirz = (
+            (np.sin(res[key].theta) * np.cos(res[key].phi))[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+            (np.sin(res[key].phi) * np.sin(res[key].theta))[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+            np.cos(res[key].theta)[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+        )
+
+        y = np.arange(slice_y[0], slice_y[-1])
+        x = np.arange(slice_x[0], slice_x[-1])
+        angle = res[key].phi[
+            slice_y[0] : slice_y[-1],
+            slice_x[0] : slice_x[-1],
+            slice_z[0] : slice_z[-1],
+        ]  # np.arctan2(diry, dirx)
+
+        X, Y = np.meshgrid(x, y)
+        XY = np.column_stack((X.ravel(), Y.ravel()))
+
+        ww = arrow_length - dirz * arrow_length
+        # hh = arrow_length #- dirz * arrow_length
+        hh = ww * (np.exp(1 + np.abs(colors[i])))
+        # ww = hh * colors[i]
+        aa = angle
+
+        ec = EllipseCollection(
+            ww,
+            hh,
+            aa,
+            units="xy",
+            offsets=XY,
+            transOffset=ax.transData,
+            cmap=cmap,
+            norm=norm,
+        )  # RSD: Cmap?
+        ec.set_array(colors[i].ravel())
+        ax.add_collection(ec)
+        ax.set_aspect("equal")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlim(slice_x[0], slice_x[-1])
+        ax.set_ylim(slice_y[0], slice_y[-1])
+        ax.set_title(key)
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+
+        fig.subplots_adjust(bottom=0.4)
+        cbar_ax = fig.add_axes([0.2, 0.2, 0.6, 0.05])
+        label = r"DoA [a.u.]"
+        plt.colorbar(
+            mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+            cax=cbar_ax,
+            label=f"{label}",
+            orientation="horizontal",
+        )
+
+    return
+
+
+def plot_orthogonal_projections(
+    symbolic,
+    automatic,
+    expsin,
+    slice,
+    degree_of_anisotropy=1,
+    title="Orthogonal Projections",
+    save=False,
+    save_name="reconstruction_slices",
+    incscape=False,
+    size_fraction=1,
+    arrow_length=0.1,
+    intensity_threshold=2,
+):
+    """Plot orthogonal projections of the reconstruction."""
+
+    choose_formatter(incscape=incscape)
+
+    res = {"SYM": symbolic, "AD": automatic, "EXPSIN": expsin}
+
+    slice_y, slice_x, slice_z = slice
+
+    cols, rows = 3, 3
+
+    if not size_fraction:
+        cols_fraction = 1
+        rows_fraction = 1
+    else:
+        cols_fraction = cols / size_fraction
+        rows_fraction = rows / size_fraction
+
+    size1, size2 = (
+        cols_fraction * DEFAULT_FIGSIZE[0],
+        rows_fraction * DEFAULT_FIGSIZE[1],
+    )
+
+    cmap = XRDCT_palette_cmp
+    norm = mpl.colors.Normalize(vmin=-0.5, vmax=0)
+    colors_list = [
+        elem.DoA[
+            slice_y[0] : slice_y[-1],
+            slice_x[0] : slice_x[-1],
+            slice_z[0] : slice_z[-1],
+        ]
+        for elem in res.values()
+    ]
+    colors = {"SYM": colors_list[0], "AD": colors_list[1], "EXPSIN": colors_list[2]}
+
+    views = [
+        ("SXY", (90, -90, 0)),
+        ("AXY", (90, -90, 0)),
+        ("EXY", (90, -90, 0)),
+        ("SXZ", (0, -90, 0)),
+        ("AXZ", (0, -90, 0)),
+        ("EXZ", (0, -90, 0)),
+        ("SYZ", (0, 0, 0)),
+        ("AYZ", (0, 0, 0)),
+        ("EYZ", (0, 0, 0)),
+    ]
+    layout = [
+        ["SXY", "AXY", "EXY"],
+        ["SXZ", "AXZ", "EXZ"],
+        ["SYZ", "AYZ", "EYZ"],
+    ]
+    fig, axs = plt.subplot_mosaic(
+        layout,
+        figsize=(size1, size2),
+        subplot_kw=dict(projection="3d"),
+        constrained_layout=True,
+    )
+
+    for i, (plane, angles) in enumerate(views):
+        ax = axs[plane]
+        ax.set_proj_type("ortho")
+        ax.view_init(elev=angles[0], azim=angles[1])  # -, roll=angles[2])
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_zticks([])
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_zticklabels([])
+        lim_scalar = 8
+        ax.set_xlim(slice_x[0] + lim_scalar, slice_x[-1] - lim_scalar)
+        ax.set_ylim(slice_y[0] + lim_scalar, slice_y[-1] - lim_scalar)
+        ax.set_zlim(slice_z[0] + lim_scalar, slice_z[-1] - lim_scalar)
+        # ax.set_title(plane)
+        ax.text2D(
+            0.45, 0.65, plane, transform=ax.transAxes, fontsize=14 / size_fraction
+        )
+        # ax.set_aspect("equal")
+        ax.axis("off")
+        # ax.axis("tight")
+        # ax.axis("image")
+
+        x, y, z = np.mgrid[
+            slice_y[0] : slice_y[-1], slice_x[0] : slice_x[-1], slice_z[0] : slice_z[-1]
+        ]
+        if plane[0] == "S":
+            key = "SYM"
+        elif plane[0] == "A":
+            key = "AD"
+        elif plane[0] == "E":
+            key = "EXPSIN"
+
+        if key == "EXPSIN":
+            check_value = res[key].A[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ]
+        else:
+            check_value = np.abs(
+                res[key].a0[
+                    slice_y[0] : slice_y[-1],
+                    slice_x[0] : slice_x[-1],
+                    slice_z[0] : slice_z[-1],
+                ]
+            )
+
+        above_threshold = np.argwhere(check_value >= intensity_threshold)
+        print(f"{key}: {above_threshold.shape[0]} voxels above threshold")
+        x, y, z = (
+            x[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            y[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            z[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+        )
+
+        # RSD: Nb! Convention of theta and phi.
+        dirx, diry, dirz = (
+            (np.sin(res[key].theta) * np.cos(res[key].phi))[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+            (np.sin(res[key].phi) * np.sin(res[key].theta))[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+            np.cos(res[key].theta)[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+        )
+
+        dirx, diry, dirz = (
+            dirx[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            diry[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            dirz[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+        )
+
+        q = ax.quiver(
+            x,
+            y,
+            z,
+            dirx,
+            diry,
+            dirz,
+            cmap=cmap,
+            norm=norm,
+            length=arrow_length,
+            pivot="middle",
+            arrow_length_ratio=0,
+            normalize=True,
+        )
+        color_floats = colors[key][
+            above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]
+        ].reshape(
+            -1
+        )  # RSD: Still not sure about this one.
+        q.set_array(color_floats)
+
+    # fig.subplots_adjust(bottom=0.4)
+    # cbar_ax = fig.add_axes([0.2, 0.2, 0.6, 0.05])
+    # label = r"DoA [a.u.]"
+    # plt.colorbar(
+    #     mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+    #     cax=cbar_ax,
+    #     label=f"{label}",
+    #     orientation="horizontal",
+    # )
+    fig.subplots_adjust(wspace=0, hspace=0)
+    if save:
+        fig.savefig(
+            r"../Plotting/thesis_plots/" + save_name + ".pdf",
+            bbox_inches="tight",
+            pad_inches=0,
+        )
+
+    plt.show()
+
+    choose_formatter()
+
+    fig, cbarax = plt.subplots(figsize=(DEFAULT_FIGSIZE[0], DEFAULT_FIGSIZE[1] / 5))
+    plt.colorbar(
+        mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+        cax=cbarax,
+        label=f"Degree of Anisotropy",
+        orientation="horizontal",
+    )
+    if save:
+        fig.savefig(
+            r"../Plotting/thesis_plots/" + save_name + "colorbar_equatorial.svg"
+        )
+    plt.show()
+
+    return
+
+
+def plot_3D_ellipsoids(
+    symbolic,
+    automatic,
+    expsin,
+    slice,
+    degree_of_anisotropy=1,
+    title="Orthogonal Projections",
+    save=False,
+    save_name="reconstruction_slices",
+    incscape=False,
+    size_fraction=1,
+    arrow_length=0.1,
+    intensity_threshold=2,
+):
+    # from mpl_toolkits.mplot3d.art3d import Ellipsoid
+    from mpl_toolkits.mplot3d.art3d import EllipsoidCollection
+
+    choose_formatter(incscape=incscape)
+
+    res = {"SYM": symbolic, "AD": automatic, "EXPSIN": expsin}
+
+    slice_y, slice_x, slice_z = slice
+
+    cols, rows = 3, 1
+
+    if not size_fraction:
+        cols_fraction = 1
+        rows_fraction = 1
+    else:
+        cols_fraction = cols / size_fraction
+        rows_fraction = rows / size_fraction
+
+    size1, size2 = (
+        cols_fraction * DEFAULT_FIGSIZE[0],
+        rows_fraction * DEFAULT_FIGSIZE[1],
+    )
+
+    cmap = XRDCT_palette_cmp
+    norm = mpl.colors.Normalize(vmin=-0.5, vmax=0)
+    colors_list = [
+        elem.DoA[
+            slice_y[0] : slice_y[-1],
+            slice_x[0] : slice_x[-1],
+            slice_z[0] : slice_z[-1],
+        ]
+        for elem in res.values()
+    ]
+    colors = {"SYM": colors_list[0], "AD": colors_list[1], "EXPSIN": colors_list[2]}
+
+    # fig, axs = plt.subplots(1, 3, figsize=(size1, size2), subplot_kw={"projection": "3d"})
+    fig = plt.figure(figsize=(size1, size2), constrained_layout=True)
+    for i, key in enumerate(res.keys()):
+        ax = fig.add_subplot(1, 3, i + 1, projection="3d")
+        ax.set_title(key, fontsize=20)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_zticks([])
+        lim_scalar = 8
+        ax.set_xlim(slice_x[0] + lim_scalar, slice_x[-1] - lim_scalar)
+        ax.set_ylim(slice_y[0] + lim_scalar, slice_y[-1] - lim_scalar)
+        ax.set_zlim(slice_z[0] + lim_scalar, slice_z[-1] - lim_scalar)
+        ax.set_view(azim=90, elev=-90)
+
+        if key == "EXPSIN":
+            check_value = res[key].A[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ]
+        else:
+            check_value = np.abs(
+                res[key].a0[
+                    slice_y[0] : slice_y[-1],
+                    slice_x[0] : slice_x[-1],
+                    slice_z[0] : slice_z[-1],
+                ]
+            )
+
+        above_threshold = np.argwhere(colors[key] > check_value)
+
+        x, y, z = np.mgrid[
+            slice_y[0] : slice_y[-1], slice_x[0] : slice_x[-1], slice_z[0] : slice_z[-1]
+        ]
+        x, y, z = (
+            x[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            y[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            z[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+        )
+
+        # RSD: Nb! Convention of theta and phi.
+        dirx, diry, dirz = (
+            (np.sin(res[key].theta) * np.cos(res[key].phi))[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+            (np.sin(res[key].phi) * np.sin(res[key].theta))[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+            np.cos(res[key].theta)[
+                slice_y[0] : slice_y[-1],
+                slice_x[0] : slice_x[-1],
+                slice_z[0] : slice_z[-1],
+            ],
+        )
+
+        dirx, diry, dirz = (
+            dirx[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            diry[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+            dirz[above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]],
+        )
+
+        color_floats = colors[key][
+            above_threshold[:, 0], above_threshold[:, 1], above_threshold[:, 2]
+        ]  # .reshape(
+        #     -1
+        # )
+
+        ellipsoids = EllipsoidCollection(
+            (dirx, diry, dirz), (x, y, z), color=color_floats
+        )
+
+        ax.add_collection3d(ellipsoids)
+
+    return
+
+
+###########################################
+
+# Additional plots
+
+# def plot_DoA_EXPSIN_example(): RSD: Maybe baby.
+
+
+def plot_ck_expected_scattering():
+    N = 16
+    theta = np.linspace(0, 2 * np.pi, 360)
+    radii = np.ones(360)
+    width = 2 * np.pi / 16
+    ax = plt.subplot(111, projection="polar")
+    cmap = XRDCT_palette_cmp
+    norm = mpl.colors.Normalize(vmin=0, vmax=1)
+    sectors = np.arange(0, 2 * np.pi, 2 * np.pi / N)  # * 180 / np.pi
+    radii = np.ones(len(sectors))
+
+    # sector_highlighted = np.zeros(500)
+    # sector_highlighted[sectors[2] : sectors[3]] = 1
+    # sector_highlighted[sectors[6] : sectors[7]] = 1
+
+    sector_highlighted = np.ones(N) * 0.5
+    sector_highlighted[3:4] = 1
+    sector_highlighted[11:12] = 1
+    colors = cmap(sector_highlighted)
+    ax.bar(sectors, radii, width=width, alpha=0.69, color=colors)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    # ax.set_yticks(sectors)
+    # ax.set_xticklabels(["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""])
+    plt.savefig(r"../Figures/ck_expected_scattering.svg")
+
+    return
+
+
+def plot_sinogram(image, save=True, save_name="sinogram.svg"):
+    from skimage.transform import radon, rescale
+
+    choose_formatter(True)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4.5), constrained_layout=False)
+
+    ax1.set_title("Image")
+    ax1.imshow(image, cmap=plt.cm.Greys_r)
+
+    theta = np.linspace(0.0, 180.0, max(image.shape), endpoint=False)
+    sinogram = radon(image, theta=theta)
+    dx, dy = 0.5 * 180.0 / max(image.shape), 0.5 / sinogram.shape[0]
+    ax2.set_title("Sinogram")
+    ax2.set_xlabel("Projection angle [deg]")
+    ax2.set_ylabel("Projection position [pixels]")
+    ax2.imshow(
+        sinogram,
+        cmap=plt.cm.Greys_r,
+        extent=(-dx, 180.0 + dx, -dy, sinogram.shape[0] + dy),
+        aspect="auto",
+    )
+
+    fig.tight_layout()
+    if save:
+        plt.savefig(r"./thesis_plots/" + save_name)
+
+    plt.show()
 
 
 ###########################################
@@ -1007,14 +2042,14 @@ def animate_3D_CGD(
             c="#A8B6CC",
             markersize=14,
         )
-        ax.plot(traj[:, 0], traj[:, -1], 0, c="#A8B6CC")
+        ax.plot(traj[:, 0], traj[:, -1], 0, "X", c="#A8B6CC", markersize=10)
         fig.savefig(f"{filename}.svg")
 
 
 # plt.rc("text", usetex=True)
 
 
-def plot_SH(ax, l=0, m=0):
+def plot_SH(ax, l=0, m=0, sphere=False, zenith=(0, 0), intensity=1):
     """
     Much code copied from https://scipython.com/blog/visualizing-the-real-forms-of-the-spherical-harmonics/
     """
@@ -1022,14 +2057,20 @@ def plot_SH(ax, l=0, m=0):
     # Grids of polar and azimuthal angles
     theta = np.linspace(0, np.pi, 100)
     phi = np.linspace(0, 2 * np.pi, 100)
+    t0 = 0  # zenith[0]
+    p0 = 0  # zenith[1]
     # Create a 2-D meshgrid of (theta, phi) angles.
     theta, phi = np.meshgrid(theta, phi)
     # Calculate the Cartesian coordinates of each point in the mesh.
     xyz = np.array(
-        [np.sin(theta) * np.sin(phi), np.sin(theta) * np.cos(phi), np.cos(theta)]
+        [
+            np.sin(theta - t0) * np.sin(phi - p0),
+            np.sin(theta - t0) * np.cos(phi - p0),
+            np.cos(theta - t0),
+        ]
     )
 
-    Y = sph_harm(0, l, phi, theta)
+    Y = sph_harm(0, l, phi, theta) * intensity
     # print(Y)
     Yx, Yy, Yz = np.abs(Y) * xyz
 
@@ -1039,25 +2080,44 @@ def plot_SH(ax, l=0, m=0):
     cmap.set_clim(-0.5, 0.5)
     divnorm = TwoSlopeNorm(vmin=-0.5, vcenter=0, vmax=0.5)
 
-    ax.plot_surface(
-        Yx, Yy, Yz, facecolors=cmap.to_rgba(Y.real), norm=divnorm, rstride=2, cstride=2
-    )
+    if sphere:
+        ax.plot_surface(
+            xyz[0],
+            xyz[1],
+            xyz[2],
+            facecolors=cmap.to_rgba(Y.real),
+            norm=divnorm,
+            rstride=2,
+            cstride=2,
+        )
+        ax_lim = 1.25
+    else:
+        ax.plot_surface(
+            Yx,
+            Yy,
+            Yz,
+            facecolors=cmap.to_rgba(Y.real),
+            norm=divnorm,
+            rstride=2,
+            cstride=2,
+        )
+        ax.set_title(r"$Y_{{{},{}}}$".format(l, m))
+        ax_lim = 0.5
 
     # Draw a set of x, y, z axes for reference.
-    ax_lim = 0.5
+    # ax_lim = 0.5
     ax.plot([-ax_lim, ax_lim], [0, 0], [0, 0], c="0.5", lw=1, zorder=10)
     ax.plot([0, 0], [-ax_lim, ax_lim], [0, 0], c="0.5", lw=1, zorder=10)
     ax.plot([0, 0], [0, 0], [-ax_lim, ax_lim], c="0.5", lw=1, zorder=10)
     # Set the Axes limits and title, turn off the Axes frame.
-    ax.set_title(r"$Y_{{{},{}}}$".format(l, m))
-    ax_lim = 0.5
+
     ax.set_xlim(-ax_lim, ax_lim)
     ax.set_ylim(-ax_lim, ax_lim)
     ax.set_zlim(-ax_lim, ax_lim)
     ax.axis("off")
 
 
-def plot_exp_sin(ax, A, B):
+def plot_exp_sin(ax, A, B, sphere=False):
 
     theta = np.linspace(0, np.pi, 100)
     phi = np.linspace(0, 2 * np.pi, 100)
@@ -1079,18 +2139,31 @@ def plot_exp_sin(ax, A, B):
     cmap.set_clim(-0.5, 0.5)
     divnorm = TwoSlopeNorm(vmin=-0.5, vcenter=0, vmax=0.5)
 
-    ax.plot_surface(
-        Fx, Fy, Fz, facecolors=cmap.to_rgba(F), norm=divnorm, rstride=2, cstride=2
-    )
+    if sphere:
+        ax.plot_surface(
+            xyz[0],
+            xyz[1],
+            xyz[2],
+            facecolors=cmap.to_rgba(F),
+            norm=divnorm,
+            rstride=2,
+            cstride=2,
+        )
+        ax_lim = 1.25
+    else:
+        ax.plot_surface(
+            Fx, Fy, Fz, facecolors=cmap.to_rgba(F), norm=divnorm, rstride=2, cstride=2
+        )
+        ax.set_title(r"$F_{{{},{}}}$".format(A, B))
+        ax_lim = 0.5
 
     # Draw a set of x, y, z axes for reference.
-    ax_lim = 0.5
+
     ax.plot([-ax_lim, ax_lim], [0, 0], [0, 0], c="0.5", lw=1, zorder=10)
     ax.plot([0, 0], [-ax_lim, ax_lim], [0, 0], c="0.5", lw=1, zorder=10)
     ax.plot([0, 0], [0, 0], [-ax_lim, ax_lim], c="0.5", lw=1, zorder=10)
     # Set the Axes limits and title, turn off the Axes frame.
-    ax.set_title(r"$F_{{{},{}}}$".format(A, B))
-    ax_lim = 0.5
+
     ax.set_xlim(-ax_lim, ax_lim)
     ax.set_ylim(-ax_lim, ax_lim)
     ax.set_zlim(-ax_lim, ax_lim)

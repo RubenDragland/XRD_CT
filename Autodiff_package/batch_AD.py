@@ -557,12 +557,17 @@ def EXPSIN_AD_cost_function(
     # RSD: Here the new things begin:
 
     # RSD: Simpsons integral and shape treatment.
-    norm = torch.sqrt(torch_simpsons(norm_integrand, B_sq) ** 2)
+    sign = int(np.squeeze(p["sign"]))  # Scattering model positive or negatice. 1 or -1.
+    norm = torch.sqrt(torch_simpsons(norm_integrand, B_sq, sign=sign) ** 2)
     norm = norm.unsqueeze(0).unsqueeze(-1)
 
     SIN_THETA_SQUARED = 1 - COS_THETA**2
 
-    I_hat_tomogram = A_sq**2 * torch.exp(-B_sq * SIN_THETA_SQUARED).to(device) / norm
+    I_hat_tomogram = (
+        A_sq**2
+        * torch.exp(-sign * torch.sqrt(B_sq**2) * SIN_THETA_SQUARED).to(device)
+        / norm
+    )  # RSD: Redo changes.?
     I_hat_tomogram = reshape_fortran(
         I_hat_tomogram, (n_proj, ny, nx, nz, numOfsegments)
     )
@@ -1004,17 +1009,19 @@ def repmat_cumprod_SH(cos_theta_sh_cut, numOfCoeffs, n_proj):
     return copy_matrix
 
 
-def norm_integrand(x, B):
+def norm_integrand(x, B, sign=1):
 
     pi = torch.acos(torch.zeros(1)).item() * 2
     B = B.unsqueeze(0)
     sinx = torch.sin(x)
     while len(sinx.shape) < len(B.shape):
         sinx = sinx.unsqueeze(-1)
-    return 2 * pi * sinx * torch.exp(-B * sinx**2)
+    return 2 * pi * sinx * torch.exp(-sign * torch.sqrt(B**2) * sinx**2)
 
 
-def torch_simpsons(func, B, a=0, b=torch.acos(torch.zeros(1)).item() * 2, N=500):
+def torch_simpsons(
+    func, B, sign=1, a=0, b=torch.acos(torch.zeros(1)).item() * 2, N=500
+):
     """
     Performs the Simpson's rule integration of a function func
     between a and b with N intervals.
@@ -1028,10 +1035,10 @@ def torch_simpsons(func, B, a=0, b=torch.acos(torch.zeros(1)).item() * 2, N=500)
         h
         / 3
         * (
-            func(x[0], B)
-            + 4 * torch.sum(func(x[1:-1:2], B), dim=0)
-            + 2 * torch.sum(func(x[2:-1:2], B), dim=0)
-            + func(x[-1], B)
+            func(x[0], B, sign=sign)
+            + 4 * torch.sum(func(x[1:-1:2], B, sign=sign), dim=0)
+            + 2 * torch.sum(func(x[2:-1:2], B, sign=sign), dim=0)
+            + func(x[-1], B, sign=sign)
         )
     )
 

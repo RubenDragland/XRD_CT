@@ -1,5 +1,7 @@
 import numpy as np
 import scipy.io
+from scipy.integrate import simpson
+from scipy.special import sph_harm
 
 
 class TensorTomographyReconstruction:
@@ -100,6 +102,51 @@ class SH_Reconstruction(TensorTomographyReconstruction):
             "theta": self.theta,
             "phi": self.phi,
         }
+        self.find_a_ratio()
+        self.find_DoA()
+
+    def find_a_ratio(self):
+        """
+        Stores the Anisotropic ratio in the object
+        """
+        self.a_ratio = (self.a2**2 + self.a4**2 + self.a6**2) / (
+            self.a0**2 + self.a2**2 + self.a4**2 + self.a6**2
+        )
+        # self.indexing_dict["DoA"] = self.DoA
+        return
+
+    def find_DoA(self):
+        """
+        Stores the nematic order in the object
+        """
+
+        x = np.linspace(0, np.pi, 500)
+        zeros = np.zeros(len(x))
+        sinx = np.sin(x)[:, np.newaxis, np.newaxis, np.newaxis]
+        cosx = np.cos(x)[:, np.newaxis, np.newaxis, np.newaxis]
+        A0 = self.a0[np.newaxis, :, :, :]
+        A2 = self.a2[np.newaxis, :, :, :]
+        A4 = self.a4[np.newaxis, :, :, :]
+        A6 = self.a6[np.newaxis, :, :, :]
+        SH0 = sph_harm(0, 0, zeros, x)[:, np.newaxis, np.newaxis, np.newaxis]
+        SH2 = sph_harm(0, 2, zeros, x)[:, np.newaxis, np.newaxis, np.newaxis]
+        SH4 = sph_harm(0, 4, zeros, x)[:, np.newaxis, np.newaxis, np.newaxis]
+        SH6 = sph_harm(0, 6, zeros, x)[:, np.newaxis, np.newaxis, np.newaxis]
+
+        cos_squared_avg = np.real(
+            simpson(
+                (A0 * SH0 + A2 * SH2 + A4 * SH4 + A6 * SH6) ** 2 * cosx**2 * sinx,
+                axis=0,
+            )
+            / simpson(
+                ((A0 * SH0) + (A2 * SH2) + (A4 * SH4) + (A6 * SH6)) ** 2 * sinx,
+                axis=0,
+            )
+        )
+
+        self.DoA = 0.5 * (3 * cos_squared_avg - 1)
+        self.indexing_dict["DoA"] = self.DoA
+        return
 
 
 class EXPSIN_Reconstruction(TensorTomographyReconstruction):
@@ -119,3 +166,29 @@ class EXPSIN_Reconstruction(TensorTomographyReconstruction):
             "theta": self.theta,
             "phi": self.phi,
         }
+
+        try:
+            self.sign = int(np.squeeze(self.mat["p"]["sign"]))
+        except:
+            self.sign = 1
+
+        self.find_DoA()
+
+    def find_DoA(self):
+        """
+        Stores the Degree of Anisotropy (DoA) in the object
+        """
+        x = np.linspace(0, np.pi, 500)
+        sinx = np.sin(x)[:, np.newaxis, np.newaxis, np.newaxis]
+        cosx = np.cos(x)[:, np.newaxis, np.newaxis, np.newaxis]
+        B = np.abs(self.B[np.newaxis, :, :, :])
+        A = self.A[np.newaxis, :, :, :]
+        sign = self.sign  # Include sign
+
+        norm_COS2 = simpson(
+            np.exp(-sign * np.sqrt(B**2) * sinx**2) * cosx**2 * sinx, axis=0
+        ) / simpson(np.exp(-sign * np.sqrt(B**2) * sinx**2) * sinx, axis=0)
+        self.DoA = 0.5 * (3 * norm_COS2 - 1)
+
+        self.indexing_dict["DoA"] = self.DoA
+        return

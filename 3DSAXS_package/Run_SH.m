@@ -6,30 +6,34 @@ function [finish] = Run_SH(parent, sample_name, mode, filter, varargin)
 %it1 = 10, it2 = 20, 
 %it3 = 20, it4 = 50, 
 default_a = 1e-4;
+default_sign = 1;
 default_theta = pi/4;
 default_phi = pi/4;
 default_it1 = 10;
 default_it2 = 20;
 default_it3 = 20;
 default_it4 = 50;
-if nargin > 7
+if nargin > 8
     a_init = varargin{1};
-    theta_init = varargin{2};
-    phi_init = varargin{3};
-    it1 = varargin{4};
-    it2 = varargin{5};
-    it3 = varargin{6};
-    it4 = varargin{7};
+    a_sign = varargin{2};
+    theta_init = varargin{3};
+    phi_init = varargin{4};
+    it1 = varargin{5};
+    it2 = varargin{6};
+    it3 = varargin{7};
+    it4 = varargin{8};
 elseif nargin >4
     a_init = varargin{1};
-    theta_init = varargin{2};
-    phi_init = varargin{3};
+    a_sign = varargin{2};
+    theta_init = varargin{3};
+    phi_init = varargin{4};
     it1 = default_it1;
     it2 = default_it2;
     it3 = default_it3;
     it4 = default_it4;  
 else
     a_init = default_a;
+    a_sign = default_sign;
     theta_init = default_theta;
     phi_init = default_phi;
     it1 = default_it1;
@@ -349,9 +353,11 @@ m = [0 0 0];  % Azimuthal order
 %%%define ratio of coefficient (fixed in this step) for bone: 1, -3, 6,
 %%%%RSD: Ratios should be changed. Have carbon knot.
 a_ratio = [1, 5, 10];
+signs = [1, a_sign, 1];
+p.sign = a_sign;
 
 for ii = 1:numel(l)
-    s.a(ii).data = sym_int.s.a(1).data / a_ratio(ii);
+    s.a(ii).data = signs(ii) * sym_int.s.a(1).data / a_ratio(ii);
     s.a(ii).l = l(ii);
     s.a(ii).m = m(ii);
 end
@@ -412,10 +418,11 @@ p.phi_det = angle_opt.p.phi_det;
 l = [0 2 4 6];  % Polar order
 m = [0 0 0 0];  % Azimuthal order
 a = [1 0.2 0.1 0.05];   % Coefficients
+signs = [1 a_sign 1 a_sign];
 
 for ii = 1:numel(l)
     if p.opt_coeff(ii)
-        s.a(ii).data = ones(p.ny,p.nx,p.nz)*a(ii);
+        s.a(ii).data = signs(ii) * ones(p.ny,p.nx,p.nz)*a(ii);
     else      % This is only needed in case of loading from the file. I am not sure I like this idea that we always start each step by loading from file by default.
         s.a(ii).data = sym_opt.s.a(1).data;
     end

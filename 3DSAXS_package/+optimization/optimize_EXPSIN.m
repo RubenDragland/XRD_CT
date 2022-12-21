@@ -60,7 +60,7 @@
 %    proper use and the correctness of the results.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [p, s] = optimize_SH(projection, p, s) %RSD: Added Boolean for automatic differentiation
+function [p, s] = optimize_EXPSIN(projection, p, s) %RSD: Added Boolean for automatic differentiation
 % Number of coefficients
 order = 1; %RSD: needed?
 

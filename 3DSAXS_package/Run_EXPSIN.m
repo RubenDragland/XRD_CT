@@ -1,24 +1,27 @@
-function [finish] = Run_EXPSIN( parent, sample_name, filter, varargin  ) % RSD: Figure out this. 
+function [finish] = Run_EXPSIN( parent, sample_name, filter, varargin  ) % RSD: Figure out if B squared or not...
 
 %RSD
 % varargin: itmax, A_init, B_init; theta_init, phi_init
 default_it = 100;
 default_A = 1e-4;
 default_B = 1e-4;
+default_sign = 1;
 default_theta = pi/4;
 default_phi = pi/4;
 default_normalise = 1;
-if nargin > 6
+if nargin > 7
     it_max = varargin{1};
     A_init = varargin{2};
     B_init = varargin{3};
-    theta_init = varargin{4};
-    phi_init = varargin{5};
-    normalise = varargin{6};
+    sign = varargin{4};
+    theta_init = varargin{5};
+    phi_init = varargin{6};
+    normalise = varargin{7};
 elseif nargin >4
     it_max = varargin{1};
     A_init = varargin{2};
     B_init = varargin{3};
+    sign = varargin{4};
     theta_init = default_theta;
     phi_init = default_phi;
     normalise = default_normalise;
@@ -26,6 +29,7 @@ elseif nargin > 3
     it_max = varargin{1};
     A_init = default_A;
     B_init = default_B;
+    sign = default_sign;
     theta_init = default_theta;
     phi_init = default_phi;  
     normalise = default_normalise;
@@ -33,6 +37,7 @@ else
     it_max = default_it;
     A_init = default_A;
     B_init = default_B;
+    sign = default_sign;
     theta_init = default_theta;
     phi_init = default_phi;   
     normalise = default_normalise;
@@ -75,7 +80,7 @@ E = [];%12.4;   % X-ray energy in keV, needed for Ewald sphere correction, leave
 
 % %%% 2D plot characteristics (the data) %%%
 % Half of the Angular segments in integration
-p.numsegments = length(projection(1).integ.phi_det)/2;
+p.numsegments = 8; %RSD: Hardcoded! %length(projection(1).integ.phi_det)/2;
 
 % read the phi_det from integ
 % consider only the first half because of the symmetry assumption for the
@@ -117,6 +122,7 @@ doing_q_resolved = false;
 
 p.filter_2D = filter;
 p.add_name = "EXPSIN_AD_python";
+p.sign = sign;
 make_3Dmask = 0;
 
 p.slice = 0; %in case the optimization is done on a slice (so it is using a 2D kernel)
